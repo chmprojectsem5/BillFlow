@@ -1,29 +1,54 @@
-require('dotenv').config();
-const express = require('express');
-const mongoose = require('mongoose');
-const cors = require('cors');
+const env = require('./src/config/env');
+const connectDB = require('./src/config/db');
+const app = require('./src/app');
 
-const app = express();
-app.use(cors());
-app.use(express.json());
-
-app.get('/api/health', (req, res) => {
-  res.status(200).json({ status: 'ok', message: 'Backend is running' });
+// Handle uncaught exceptions gracefully
+process.on('uncaughtException', (err) => {
+  console.error('[UNCAUGHT EXCEPTION] Shutting down...');
+  console.error(err.name, err.message);
+  process.exit(1);
 });
 
-const PORT = process.env.PORT || 5000;
+let server;
 
-// Delay DB connection for later when implementing features
-// mongoose.connect(process.env.MONGO_URI);
-
-if (require.main === module) {
-  const server = app.listen(PORT, () => {
-    console.log(`Server running on port ${PORT}`);
-    // Optional: exit cleanly after 1 sec to allow check script to verify it starts
+// Start server and connect to DB
+const startServer = async () => {
+  await connectDB();
+  
+  server = app.listen(env.port, () => {
+    console.log(`[Server] Running on port ${env.port} in ${env.nodeEnv} mode`);
+    
+    // Auto-shutdown for testing if requested
     if (process.env.TEST_STARTUP) {
-      setTimeout(() => server.close(() => process.exit(0)), 1000);
+      setTimeout(() => {
+        console.log('[Test] Gracefully shutting down...');
+        server.close(() => process.exit(0));
+      }, 1000);
     }
   });
-}
+};
 
-module.exports = app;
+startServer();
+
+// Handle unhandled promise rejections
+process.on('unhandledRejection', (err) => {
+  console.error('[UNHANDLED REJECTION] Shutting down...');
+  console.error(err.name, err.message);
+  if (server) {
+    server.close(() => {
+      process.exit(1);
+    });
+  } else {
+    process.exit(1);
+  }
+});
+
+// Graceful shutdown on SIGTERM (e.g., Heroku, Render, Docker)
+process.on('SIGTERM', () => {
+  console.log('👋 SIGTERM RECEIVED. Shutting down gracefully');
+  if (server) {
+    server.close(() => {
+      console.log('💥 Process terminated!');
+    });
+  }
+});
