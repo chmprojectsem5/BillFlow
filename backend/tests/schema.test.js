@@ -12,6 +12,7 @@ const Payment = require('../src/models/Payment');
 test('User Schema Validation - Required Fields and Enums', (t) => {
   const invalidRole = new User({
     businessId: new mongoose.Types.ObjectId(),
+    name: 'Test User',
     email: 'test@example.com',
     passwordHash: 'hash',
     role: 'SuperAdmin' // Invalid enum

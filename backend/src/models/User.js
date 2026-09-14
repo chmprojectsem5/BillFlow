@@ -7,6 +7,11 @@ const userSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  name: {
+    type: String,
+    required: true,
+    trim: true
+  },
   email: { 
     type: String, 
     required: true, 
@@ -17,7 +22,8 @@ const userSchema = new mongoose.Schema({
   },
   passwordHash: { 
     type: String, 
-    required: true 
+    required: true,
+    select: false // Never returned in queries unless explicitly selected
   },
   role: { 
     type: String, 
