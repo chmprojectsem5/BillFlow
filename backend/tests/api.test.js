@@ -4,6 +4,11 @@ const mongoose = require('mongoose');
 const env = require('../src/config/env');
 const app = require('../src/app');
 
+// Apply optional DNS override for tests if needed
+if (env.customDnsServers) {
+  require('dns').setServers(env.customDnsServers);
+}
+
 // Override PORT for testing to avoid conflicts
 const TEST_PORT = 5001;
 
@@ -35,15 +40,16 @@ test('API and Error Handling Foundation', async (t) => {
       headers: { 'Content-Type': 'application/json' },
       body: '{"invalid_json": "missing_quotes}' // Syntax error
     });
-    // Express body-parser catches malformed JSON before hitting our routes
-    assert.strictEqual(malformedRes.status, 400, 'Malformed JSON should return 400 Bad Request');
+    
+    // Explicitly assert correct HTTP behavior for body-parser malformed JSON rejection
+    assert.strictEqual(malformedRes.status, 400, 'Malformed JSON must rigorously return HTTP 400');
     const malformedData = await malformedRes.json();
-    // Since it's handled by body-parser error handler, it might not have our exact AppError format unless we catch it, 
-    // but default Express handles it with status 400 and an HTML/text error or JSON if configured. 
-    // Wait, our error handler catches body-parser errors too (they pass err to next).
-    if (malformedData.status) {
-      assert.strictEqual(malformedData.status, 'error');
-    }
+    assert.strictEqual(malformedData.success, false, 'Malformed JSON must report success: false');
+    
+    // Express body-parser assigns status 400 to the error object which our centralized handler passes through
+    assert.strictEqual(malformedData.status, 400, 'Error status property should correctly map to 400 from body-parser');
+    assert.match(malformedData.message, /JSON/i, 'Error message must reflect a JSON parsing failure');
+
   } finally {
     // Cleanup
     server.close();

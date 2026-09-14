@@ -2,6 +2,12 @@ const env = require('./src/config/env');
 const connectDB = require('./src/config/db');
 const app = require('./src/app');
 
+// Apply optional DNS override for specific local environments
+if (env.customDnsServers) {
+  require('dns').setServers(env.customDnsServers);
+  console.log(`[Config] Applied custom DNS servers: ${env.customDnsServers.join(', ')}`);
+}
+
 // Handle uncaught exceptions gracefully
 process.on('uncaughtException', (err) => {
   console.error('[UNCAUGHT EXCEPTION] Shutting down...');
