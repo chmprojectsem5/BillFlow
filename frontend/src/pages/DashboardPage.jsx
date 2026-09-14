@@ -1,4 +1,5 @@
 import { useAuth } from '../context/AuthContext';
+import { Link } from 'react-router-dom';
 
 const DashboardPage = () => {
   const { user, business, logout } = useAuth();
@@ -15,6 +16,9 @@ const DashboardPage = () => {
       <main className="dashboard-main">
         <h2>Welcome, {user?.name}</h2>
         <p>Your dashboard will be built in upcoming phases.</p>
+        <nav className="dashboard-nav">
+          <Link to="/business-profile" className="nav-link">Business Profile</Link>
+        </nav>
       </main>
     </div>
   );

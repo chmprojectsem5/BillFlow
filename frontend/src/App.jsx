@@ -4,6 +4,7 @@ import ProtectedRoute from './components/ProtectedRoute';
 import LoginPage from './pages/LoginPage';
 import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
+import BusinessProfilePage from './pages/BusinessProfilePage';
 import './App.css';
 
 function App() {
@@ -18,6 +19,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <DashboardPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/business-profile"
+            element={
+              <ProtectedRoute>
+                <BusinessProfilePage />
               </ProtectedRoute>
             }
           />
