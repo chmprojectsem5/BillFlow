@@ -3,6 +3,7 @@ const healthRoute = require('./health.route');
 const authRoute = require('./auth.route');
 const businessRoute = require('./business.route');
 const customerRoute = require('./customer.route');
+const itemRoute = require('./item.route');
 
 const router = express.Router();
 
@@ -10,6 +11,7 @@ router.use('/health', healthRoute);
 router.use('/auth', authRoute);
 router.use('/business', businessRoute);
 router.use('/customers', customerRoute);
+router.use('/items', itemRoute);
 
 // Future routes will be mounted here:
 // router.use('/invoices', invoiceRoute);

@@ -20,19 +20,26 @@ const itemSchema = new mongoose.Schema({
   unitPrice: { 
     type: Number, 
     required: true,
-    min: [0, 'Unit price cannot be negative'] 
+    min: [0, 'Selling price cannot be negative'] 
     // Stored in paise natively 
+  },
+  costPrice: {
+    type: Number,
+    default: null,
+    min: [0, 'Cost price cannot be negative']
+    // Stored in paise natively
   },
   gstRate: { 
     type: Number, 
-    required: true,
-    min: 0 
+    min: 0,
+    default: null
+    // Will be required by Phase 8 GST engine
   },
   taxType: {
     type: String,
     enum: ['Inclusive', 'Exclusive'],
-    required: true,
-    default: 'Exclusive'
+    default: null
+    // Will be required by Phase 8 GST engine
   },
   currentStock: { 
     type: Number,
@@ -42,19 +49,22 @@ const itemSchema = new mongoose.Schema({
     type: Number,
     default: null
   },
-  isActive: { type: Boolean, default: true }
+  isActive: { type: Boolean, default: true },
+  notes: { type: String, trim: true }
 }, { timestamps: true });
 
 // Enforce conditional logic for Services (No Inventory)
-itemSchema.pre('save', function(next) {
+itemSchema.pre('save', function() {
   if (this.type === 'Service') {
     this.currentStock = null;
     this.lowStockThreshold = null;
+    this.costPrice = null;
   }
-  next();
 });
 
 itemSchema.index({ businessId: 1, type: 1 });
 itemSchema.index({ businessId: 1, name: 1 });
+// Business-scoped SKU uniqueness (sparse: allows null/missing SKU)
+itemSchema.index({ businessId: 1, sku: 1 }, { unique: true, sparse: true });
 
 module.exports = mongoose.model('Item', itemSchema);

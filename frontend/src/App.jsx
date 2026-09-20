@@ -6,6 +6,7 @@ import RegisterPage from './pages/RegisterPage';
 import DashboardPage from './pages/DashboardPage';
 import BusinessProfilePage from './pages/BusinessProfilePage';
 import CustomersPage from './pages/CustomersPage';
+import ItemsPage from './pages/ItemsPage';
 import './App.css';
 
 function App() {
@@ -36,6 +37,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <CustomersPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/items"
+            element={
+              <ProtectedRoute>
+                <ItemsPage />
               </ProtectedRoute>
             }
           />

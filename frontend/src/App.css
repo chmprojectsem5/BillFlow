@@ -446,3 +446,87 @@
 .auth-btn.secondary:hover {
   border-color: #94a3b8;
 }
+
+/* Filter Tabs */
+.filter-tabs {
+  display: flex;
+  gap: 0.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.filter-tab {
+  padding: 0.5rem 1rem;
+  border: 1px solid #334155;
+  background: transparent;
+  color: #94a3b8;
+  border-radius: 6px;
+  cursor: pointer;
+  font-size: 0.875rem;
+  transition: all 0.2s;
+}
+
+.filter-tab:hover {
+  border-color: #475569;
+  color: #e2e8f0;
+}
+
+.filter-tab.active {
+  background: #38bdf8;
+  border-color: #38bdf8;
+  color: #0f172a;
+  font-weight: 600;
+}
+
+/* Type Badge */
+.type-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.type-badge.product {
+  background: rgba(56, 189, 248, 0.15);
+  color: #38bdf8;
+}
+
+.type-badge.service {
+  background: rgba(168, 85, 247, 0.15);
+  color: #a855f7;
+}
+
+/* Status Badge */
+.status-badge {
+  display: inline-block;
+  padding: 0.2rem 0.6rem;
+  border-radius: 4px;
+  font-size: 0.75rem;
+  font-weight: 600;
+}
+
+.status-badge.active {
+  background: rgba(34, 197, 94, 0.15);
+  color: #22c55e;
+}
+
+.status-badge.inactive {
+  background: rgba(239, 68, 68, 0.15);
+  color: #ef4444;
+}
+
+/* Checkbox Label */
+.checkbox-label {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+}
+
+.checkbox-label input[type="checkbox"] {
+  width: 1rem;
+  height: 1rem;
+  accent-color: #38bdf8;
+}

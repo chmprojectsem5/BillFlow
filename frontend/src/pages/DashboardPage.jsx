@@ -19,6 +19,7 @@ const DashboardPage = () => {
         <nav className="dashboard-nav">
           <Link to="/business-profile" className="nav-link">Business Profile</Link>
           <Link to="/customers" className="nav-link">Customers</Link>
+          <Link to="/items" className="nav-link">Products & Services</Link>
         </nav>
       </main>
     </div>
