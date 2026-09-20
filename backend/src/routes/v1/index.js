@@ -5,6 +5,7 @@ const businessRoute = require('./business.route');
 const customerRoute = require('./customer.route');
 const itemRoute = require('./item.route');
 const taxConfigRoute = require('./taxConfig.route');
+const invoiceRoute = require('./invoice.route');
 
 const router = express.Router();
 
@@ -14,8 +15,6 @@ router.use('/business', businessRoute);
 router.use('/customers', customerRoute);
 router.use('/items', itemRoute);
 router.use('/tax-config', taxConfigRoute);
-
-// Future routes will be mounted here:
-// router.use('/invoices', invoiceRoute);
+router.use('/invoices', invoiceRoute);
 
 module.exports = router;

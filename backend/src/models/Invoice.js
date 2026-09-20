@@ -4,12 +4,19 @@ const invoiceItemSnapshotSchema = new mongoose.Schema({
   itemId: { type: mongoose.Schema.Types.ObjectId, ref: 'Item' },
   type: { type: String, enum: ['Product', 'Service'] },
   name: { type: String, required: true },
+  description: { type: String },
+  sku: { type: String },
   hsnSac: { type: String },
+  classificationType: { type: String, enum: ['HSN', 'SAC'] },
+  taxTreatment: { type: String, enum: ['TAXABLE', 'NIL_RATED', 'EXEMPT', 'NON_GST'] },
   quantity: { type: Number, required: true, min: 0 },
   unit: { type: String },
   unitPrice: { type: Number, required: true, min: 0 }, // paise
-  taxType: { type: String, enum: ['Inclusive', 'Exclusive'] },
+  pricingMode: { type: String, enum: ['INCLUSIVE', 'EXCLUSIVE'] },
   gstRate: { type: Number, required: true, min: 0 },
+  cgstRate: { type: Number, default: 0, min: 0 },
+  sgstRate: { type: Number, default: 0, min: 0 },
+  igstRate: { type: Number, default: 0, min: 0 },
   discount: { type: Number, default: 0, min: 0 }, // paise
   taxableValue: { type: Number, required: true, min: 0 }, // paise
   cgst: { type: Number, default: 0, min: 0 }, // paise
@@ -37,10 +44,16 @@ const invoiceSchema = new mongoose.Schema({
   customerSnapshot: {
     customerId: { type: mongoose.Schema.Types.ObjectId, ref: 'Customer' },
     name: { type: String, required: true },
+    customerType: { type: String, enum: ['Individual', 'Business'] },
     gstin: { type: String },
+    pan: { type: String },
     billingAddress: { type: String },
+    city: { type: String },
     state: { type: String },
-    email: { type: String }
+    pinCode: { type: String },
+    country: { type: String },
+    email: { type: String },
+    phone: { type: String }
   },
   businessSnapshot: { // For historical locking of business identity
     name: { type: String, required: true },

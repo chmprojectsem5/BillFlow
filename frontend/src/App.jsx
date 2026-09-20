@@ -8,6 +8,7 @@ import BusinessProfilePage from './pages/BusinessProfilePage';
 import CustomersPage from './pages/CustomersPage';
 import ItemsPage from './pages/ItemsPage';
 import TaxConfigPage from './pages/TaxConfigPage';
+import InvoiceCreatePage from './pages/InvoiceCreatePage';
 import './App.css';
 
 function App() {
@@ -54,6 +55,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <TaxConfigPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices/new"
+            element={
+              <ProtectedRoute>
+                <InvoiceCreatePage />
               </ProtectedRoute>
             }
           />

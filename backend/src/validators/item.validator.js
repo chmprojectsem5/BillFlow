@@ -12,6 +12,7 @@ const createItemSchema = z.object({
   costPrice: z.number().int('Cost price must be an integer (paise)').min(0, 'Cost price cannot be negative').nullable().optional(),
   currentStock: z.number().int('Stock must be an integer').min(0, 'Stock cannot be negative').nullable().optional(),
   lowStockThreshold: z.number().int('Threshold must be an integer').min(0, 'Threshold cannot be negative').nullable().optional(),
+  taxType: z.enum(['Inclusive', 'Exclusive']).optional().nullable(),
   isActive: z.boolean().optional(),
   notes: z.string().max(2000).optional()
 }).strict();
@@ -28,6 +29,7 @@ const updateItemSchema = z.object({
   costPrice: z.number().int('Cost price must be an integer (paise)').min(0, 'Cost price cannot be negative').nullable().optional(),
   currentStock: z.number().int('Stock must be an integer').min(0, 'Stock cannot be negative').nullable().optional(),
   lowStockThreshold: z.number().int('Threshold must be an integer').min(0, 'Threshold cannot be negative').nullable().optional(),
+  taxType: z.enum(['Inclusive', 'Exclusive']).optional().nullable(),
   isActive: z.boolean().optional(),
   notes: z.string().max(2000).optional()
 }).strict();
