@@ -7,6 +7,7 @@ import DashboardPage from './pages/DashboardPage';
 import BusinessProfilePage from './pages/BusinessProfilePage';
 import CustomersPage from './pages/CustomersPage';
 import ItemsPage from './pages/ItemsPage';
+import TaxConfigPage from './pages/TaxConfigPage';
 import './App.css';
 
 function App() {
@@ -45,6 +46,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <ItemsPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/tax-config"
+            element={
+              <ProtectedRoute>
+                <TaxConfigPage />
               </ProtectedRoute>
             }
           />

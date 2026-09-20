@@ -530,3 +530,14 @@
   height: 1rem;
   accent-color: #38bdf8;
 }
+
+/* HSN/SAC Type Badges */
+.type-badge.hsn {
+  background: rgba(251, 146, 60, 0.15);
+  color: #fb923c;
+}
+
+.type-badge.sac {
+  background: rgba(52, 211, 153, 0.15);
+  color: #34d399;
+}
