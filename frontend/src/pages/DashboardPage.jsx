@@ -20,6 +20,7 @@ const DashboardPage = () => {
           <Link to="/business-profile" className="nav-link">Business Profile</Link>
           <Link to="/customers" className="nav-link">Customers</Link>
           <Link to="/items" className="nav-link">Products & Services</Link>
+          <Link to="/inventory" className="nav-link">Inventory</Link>
           <Link to="/tax-config" className="nav-link">Tax Config</Link>
           <Link to="/invoices/new" className="nav-link text-blue-600 font-bold">+ Create Invoice</Link>
         </nav>

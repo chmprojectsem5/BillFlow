@@ -80,7 +80,7 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
     const createItem18Res = await fetch(`${BASE}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'Item 18% Excl', type: 'Product', unitPrice: 100000, taxType: 'Exclusive', hsnSac: '1818', sku: 'SKU18EX' })
+      body: JSON.stringify({ name: 'Item 18% Excl', type: 'Product', unitPrice: 100000, taxType: 'Exclusive', hsnSac: '1818', sku: 'SKU18EX', currentStock: 100 })
     });
     const d18 = await createItem18Res.json();
     if(!createItem18Res.ok) throw new Error(JSON.stringify(d18));
@@ -98,7 +98,7 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
     const createItem5Res = await fetch(`${BASE}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'Item 5%', type: 'Product', unitPrice: 100000, taxType: 'Exclusive', hsnSac: '0505', sku: 'SKU5' })
+      body: JSON.stringify({ name: 'Item 5%', type: 'Product', unitPrice: 100000, taxType: 'Exclusive', hsnSac: '0505', sku: 'SKU5', currentStock: 100 })
     });
     const d5 = await createItem5Res.json();
     if(!createItem5Res.ok) throw new Error(JSON.stringify(d5));

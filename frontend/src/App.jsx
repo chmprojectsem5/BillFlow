@@ -11,6 +11,7 @@ import TaxConfigPage from './pages/TaxConfigPage';
 import InvoiceCreatePage from './pages/InvoiceCreatePage';
 import InvoiceViewPage from './pages/InvoiceViewPage';
 import InvoiceHistoryPage from './pages/InvoiceHistoryPage';
+import InventoryPage from './pages/InventoryPage';
 import './App.css';
 
 function App() {
@@ -81,6 +82,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <InvoiceViewPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/inventory"
+            element={
+              <ProtectedRoute>
+                <InventoryPage />
               </ProtectedRoute>
             }
           />

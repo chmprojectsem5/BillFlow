@@ -274,7 +274,7 @@ const finalizeInvoice = async (businessId, invoiceId) => {
   let invoice = await Invoice.findOne({ _id: invoiceId, businessId });
   if (!invoice) throw new AppError('Invoice not found', 404);
 
-  // Idempotency: If already finalized, just return it
+  // Idempotency: If already finalized, just return it (NO duplicate stock deduction)
   if (invoice.status === 'Unpaid' || invoice.status === 'Paid' || invoice.status === 'Partially Paid') {
     return invoice;
   }
@@ -283,37 +283,50 @@ const finalizeInvoice = async (businessId, invoiceId) => {
     throw new AppError(`Cannot finalize invoice in status: ${invoice.status}`, 400);
   }
 
-  // 1. Allocate sequence number atomically
-  const counterResult = await Counter.findOneAndUpdate(
-    { businessId },
-    { $inc: { sequenceValue: 1 } },
-    { upsert: true, returnDocument: 'after' }
-  );
+  // Use a transaction for atomic finalization + stock deduction
+  const inventoryService = require('./inventory.service');
+  const session = await mongoose.startSession();
+  try {
+    let finalizedInvoice;
+    await session.withTransaction(async () => {
+      // 1. Allocate sequence number atomically
+      const counterResult = await Counter.findOneAndUpdate(
+        { businessId },
+        { $inc: { sequenceValue: 1 } },
+        { upsert: true, returnDocument: 'after', session }
+      );
 
-  const seqStr = String(counterResult.sequenceValue).padStart(4, '0');
-  const finalInvoiceNumber = `${prefix}${seqStr}`;
+      const seqStr = String(counterResult.sequenceValue).padStart(4, '0');
+      const finalInvoiceNumber = `${prefix}${seqStr}`;
 
-  // 2. Update the invoice atomically (guarding against concurrent finalizations)
-  const updateResult = await Invoice.findOneAndUpdate(
-    { _id: invoiceId, businessId, status: 'Draft' }, // Crucial guard condition
-    { 
-      $set: { 
-        status: 'Unpaid', // Finalized default status
-        invoiceNumber: finalInvoiceNumber 
-      } 
-    },
-    { returnDocument: 'after' }
-  );
+      // 2. Update the invoice atomically (guarding against concurrent finalizations)
+      const updateResult = await Invoice.findOneAndUpdate(
+        { _id: invoiceId, businessId, status: 'Draft' }, // Crucial guard condition
+        { 
+          $set: { 
+            status: 'Unpaid',
+            invoiceNumber: finalInvoiceNumber 
+          } 
+        },
+        { returnDocument: 'after', session }
+      );
 
-  if (!updateResult) {
-    // If update fails, it means another thread finalized it between our checks.
-    // The sequence number we just allocated is lost (gap), which is acceptable per requirements.
-    // Fetch the updated one to return
-    invoice = await Invoice.findOne({ _id: invoiceId, businessId });
-    return invoice;
+      if (!updateResult) {
+        // Another thread finalized it — fetch the current state
+        finalizedInvoice = await Invoice.findOne({ _id: invoiceId, businessId }).session(session);
+        return;
+      }
+
+      // 3. Deduct stock for Product line items
+      await inventoryService.deductStockForInvoice(businessId, updateResult, session);
+
+      finalizedInvoice = updateResult;
+    });
+
+    return finalizedInvoice;
+  } finally {
+    session.endSession();
   }
-
-  return updateResult;
 };
 
 module.exports = {
