@@ -21,9 +21,11 @@ const recordPayment = async (req, res, next) => {
       throw new AppError('X-Idempotency-Key contains invalid characters', 400);
     }
 
-    const { payment, invoice } = await paymentService.recordPayment(businessId, invoiceId, paymentData, idempotencyKey);
+    const { payment, invoice, isDuplicate } = await paymentService.recordPayment(businessId, invoiceId, paymentData, idempotencyKey);
     
-    res.status(201).json({
+    const statusCode = isDuplicate ? 200 : 201;
+
+    res.status(statusCode).json({
       status: 'success',
       data: {
         payment,

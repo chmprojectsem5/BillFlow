@@ -179,13 +179,15 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     assert.strictEqual(res.status, 400);
   });
 
+  const paymentDate1 = new Date().toISOString();
+
   await t.test('Valid Partial Payment', async () => {
     const res = await fetch(`${BASE}/invoices/${invoice1}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token1}`, 'X-Idempotency-Key': `p1-${uid}` },
       body: JSON.stringify({
         amount: 100000,
-        paymentDate: new Date().toISOString(),
+        paymentDate: paymentDate1,
         method: 'Bank Transfer'
       })
     });
@@ -201,13 +203,28 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     assert.strictEqual(data.data.invoice.summary.grandTotal, 236000);
   });
 
-  await t.test('Idempotency returns 409 Conflict', async () => {
+  await t.test('Idempotency Case A (same payload) returns 200 OK', async () => {
     const res = await fetch(`${BASE}/invoices/${invoice1}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token1}`, 'X-Idempotency-Key': `p1-${uid}` },
       body: JSON.stringify({
         amount: 100000,
-        paymentDate: new Date().toISOString(),
+        paymentDate: paymentDate1,
+        method: 'Bank Transfer'
+      })
+    });
+    assert.strictEqual(res.status, 200);
+    const data = await res.json();
+    assert.strictEqual(data.data.payment.amount, 100000);
+  });
+
+  await t.test('Idempotency Case B (different payload) returns 409 Conflict', async () => {
+    const res = await fetch(`${BASE}/invoices/${invoice1}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token1}`, 'X-Idempotency-Key': `p1-${uid}` },
+      body: JSON.stringify({
+        amount: 50000, // Different amount
+        paymentDate: paymentDate1,
         method: 'Bank Transfer'
       })
     });
@@ -242,7 +259,11 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     
     results.forEach(r => {
       if (r.status === 201) successes++;
-      else conflictsOrErrors++;
+      else {
+        conflictsOrErrors++;
+        // Verify we got a controlled error (409 Conflict) and not a 500
+        assert.strictEqual(r.status, 409);
+      }
     });
 
     assert.strictEqual(successes, 1);
