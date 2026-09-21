@@ -10,6 +10,7 @@ import ItemsPage from './pages/ItemsPage';
 import TaxConfigPage from './pages/TaxConfigPage';
 import InvoiceCreatePage from './pages/InvoiceCreatePage';
 import InvoiceViewPage from './pages/InvoiceViewPage';
+import InvoiceHistoryPage from './pages/InvoiceHistoryPage';
 import './App.css';
 
 function App() {
@@ -56,6 +57,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <TaxConfigPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices"
+            element={
+              <ProtectedRoute>
+                <InvoiceHistoryPage />
               </ProtectedRoute>
             }
           />
