@@ -9,6 +9,7 @@ import CustomersPage from './pages/CustomersPage';
 import ItemsPage from './pages/ItemsPage';
 import TaxConfigPage from './pages/TaxConfigPage';
 import InvoiceCreatePage from './pages/InvoiceCreatePage';
+import InvoiceViewPage from './pages/InvoiceViewPage';
 import './App.css';
 
 function App() {
@@ -63,6 +64,14 @@ function App() {
             element={
               <ProtectedRoute>
                 <InvoiceCreatePage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/invoices/:id"
+            element={
+              <ProtectedRoute>
+                <InvoiceViewPage />
               </ProtectedRoute>
             }
           />

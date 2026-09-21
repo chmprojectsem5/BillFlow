@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const InvoiceCreatePage = () => {
   const [customers, setCustomers] = useState([]);
@@ -19,6 +19,54 @@ const InvoiceCreatePage = () => {
   const [loading, setLoading] = useState(false);
   
   const navigate = useNavigate();
+  const location = useLocation();
+  const queryParams = new URLSearchParams(location.search);
+  const editInvoiceId = queryParams.get('edit');
+  const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    if (editInvoiceId) {
+      setIsEditing(true);
+      fetchInvoiceToEdit(editInvoiceId);
+    }
+  }, [editInvoiceId]);
+
+  const fetchInvoiceToEdit = async (id) => {
+    setLoading(true);
+    try {
+      const res = await fetch(`/api/v1/invoices/${id}`, {
+        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
+      });
+      const data = await res.json();
+      if (res.ok) {
+        const inv = data.data.invoice;
+        if (inv.status !== 'Draft') {
+          setError('Cannot edit a finalized invoice.');
+          setLoading(false);
+          return;
+        }
+        
+        setSelectedCustomer(inv.customerSnapshot?.customerId || '');
+        setDate(inv.date ? inv.date.split('T')[0] : '');
+        setDueDate(inv.dueDate ? inv.dueDate.split('T')[0] : '');
+        setNotes(inv.notes || '');
+        
+        if (inv.items && inv.items.length > 0) {
+          setLineItems(inv.items.map(item => ({
+            itemId: item.itemId,
+            quantity: item.quantity,
+            discount: item.discount,
+            unitPriceOverride: item.unitPrice
+          })));
+        }
+      } else {
+        setError(data.message);
+      }
+    } catch (err) {
+      setError(err.message);
+    }
+    setLoading(false);
+  };
 
   useEffect(() => {
     fetchCustomers();
@@ -116,8 +164,11 @@ const InvoiceCreatePage = () => {
         }))
       };
 
-      const res = await fetch('/api/v1/invoices', {
-        method: 'POST',
+      const url = isEditing ? `/api/v1/invoices/${editInvoiceId}` : '/api/v1/invoices';
+      const method = isEditing ? 'PATCH' : 'POST';
+
+      const res = await fetch(url, {
+        method,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -128,7 +179,7 @@ const InvoiceCreatePage = () => {
       const data = await res.json();
       if (res.ok) {
         alert('Draft saved! ID: ' + data.data.invoice._id);
-        navigate('/dashboard'); // or to an invoice list
+        navigate('/invoices/' + data.data.invoice._id);
       } else {
         setError(data.message);
       }
@@ -158,9 +209,12 @@ const InvoiceCreatePage = () => {
         }))
       };
 
-      // 1. Create draft
-      const draftRes = await fetch('/api/v1/invoices', {
-        method: 'POST',
+      const draftUrl = isEditing ? `/api/v1/invoices/${editInvoiceId}` : '/api/v1/invoices';
+      const draftMethod = isEditing ? 'PATCH' : 'POST';
+
+      // 1. Create or update draft
+      const draftRes = await fetch(draftUrl, {
+        method: draftMethod,
         headers: {
           'Content-Type': 'application/json',
           Authorization: `Bearer ${localStorage.getItem('token')}`
@@ -183,7 +237,7 @@ const InvoiceCreatePage = () => {
       if (!finalizeRes.ok) throw new Error(finalizeData.message);
 
       alert('Invoice Finalized! Number: ' + finalizeData.data.invoice.invoiceNumber);
-      navigate('/dashboard');
+      navigate('/invoices/' + finalizeData.data.invoice._id);
     } catch (err) {
       setError(err.message);
     }
@@ -192,7 +246,7 @@ const InvoiceCreatePage = () => {
 
   return (
     <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">Create Invoice</h1>
+      <h1 className="text-2xl font-bold mb-4">{isEditing ? 'Edit Draft Invoice' : 'Create Invoice'}</h1>
       
       {error && <div className="bg-red-100 text-red-700 p-3 mb-4 rounded">{error}</div>}
 
