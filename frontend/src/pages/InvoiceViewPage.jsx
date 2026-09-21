@@ -7,6 +7,8 @@ import BillToSection from '../components/invoice/BillToSection';
 import InvoiceItemsTable from '../components/invoice/InvoiceItemsTable';
 import InvoiceTotals from '../components/invoice/InvoiceTotals';
 
+import PaymentSection from '../components/invoice/PaymentSection';
+
 const InvoiceViewPage = () => {
   const { id } = useParams();
   const navigate = useNavigate();
@@ -15,21 +17,22 @@ const InvoiceViewPage = () => {
   const [error, setError] = useState('');
   const [downloadingPdf, setDownloadingPdf] = useState(false);
 
+  const fetchInvoice = async () => {
+    try {
+      const token = localStorage.getItem('token');
+      const res = await axios.get(`http://localhost:5000/api/v1/invoices/${id}`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      setInvoice(res.data.data.invoice);
+      setLoading(false);
+    } catch (err) {
+      console.error(err);
+      setError('Failed to load invoice. It may not exist or you do not have permission.');
+      setLoading(false);
+    }
+  };
+
   useEffect(() => {
-    const fetchInvoice = async () => {
-      try {
-        const token = localStorage.getItem('token');
-        const res = await axios.get(`http://localhost:5000/api/v1/invoices/${id}`, {
-          headers: { Authorization: `Bearer ${token}` }
-        });
-        setInvoice(res.data.data.invoice);
-        setLoading(false);
-      } catch (err) {
-        console.error(err);
-        setError('Failed to load invoice. It may not exist or you do not have permission.');
-        setLoading(false);
-      }
-    };
     fetchInvoice();
   }, [id]);
 
@@ -166,6 +169,8 @@ const InvoiceViewPage = () => {
               </div>
             )}
             
+            {/* Payment Section */}
+            <PaymentSection invoice={invoice} onPaymentSuccess={fetchInvoice} />
           </div>
         </div>
       </div>

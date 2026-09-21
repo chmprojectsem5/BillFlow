@@ -21,4 +21,7 @@ router.route('/:id')
   .get(invoiceController.getInvoiceById)
   .patch(validateRequest(updateDraftInvoiceSchema), invoiceController.updateDraft);
 
+// Payment routes for a specific invoice
+router.use('/:invoiceId/payments', require('./payment.route'));
+
 module.exports = router;

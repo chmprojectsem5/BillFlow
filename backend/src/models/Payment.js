@@ -13,6 +13,10 @@ const paymentSchema = new mongoose.Schema({
     required: true,
     index: true
   },
+  idempotencyKey: {
+    type: String,
+    required: true
+  },
   amount: { 
     type: Number, 
     required: true, 
@@ -27,5 +31,8 @@ const paymentSchema = new mongoose.Schema({
   referenceNumber: { type: String },
   notes: { type: String }
 }, { timestamps: true });
+
+// Prevent duplicate submissions at the database level for the same business
+paymentSchema.index({ businessId: 1, idempotencyKey: 1 }, { unique: true });
 
 module.exports = mongoose.model('Payment', paymentSchema);
