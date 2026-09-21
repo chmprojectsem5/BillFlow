@@ -1,4 +1,5 @@
 const invoiceService = require('../services/invoice.service');
+const pdfService = require('../services/pdf.service');
 const Invoice = require('../models/Invoice');
 const AppError = require('../utils/AppError');
 
@@ -138,11 +139,45 @@ const finalize = async (req, res, next) => {
   }
 };
 
+/**
+ * Generate and download PDF for a specific invoice
+ */
+const downloadPdf = async (req, res, next) => {
+  try {
+    const businessId = req.user.businessId;
+    const invoiceId = req.params.id;
+    
+    const invoice = await Invoice.findOne({ _id: invoiceId, businessId });
+    if (!invoice) throw new AppError('Invoice not found', 404);
+    
+    // Generate secure filename
+    const rawNumber = invoice.invoiceNumber || invoice._id.toString();
+    const safeFilename = encodeURIComponent(rawNumber.replace(/[^a-zA-Z0-9_-]/g, ''));
+
+    const pdfDoc = await pdfService.generateInvoicePdf(invoice);
+
+    res.setHeader('Content-Type', 'application/pdf');
+    res.setHeader('Content-Disposition', `attachment; filename="Invoice-${safeFilename}.pdf"`);
+
+    const chunks = [];
+    pdfDoc.on('data', chunk => chunks.push(chunk));
+    pdfDoc.on('end', () => {
+      const result = Buffer.concat(chunks);
+      res.setHeader('Content-Length', result.length);
+      res.send(result);
+    });
+    pdfDoc.end();
+  } catch (error) {
+    next(error);
+  }
+};
+
 module.exports = {
   calculatePreview,
   createDraft,
   updateDraft,
   getInvoices,
   getInvoiceById,
-  finalize
+  finalize,
+  downloadPdf
 };

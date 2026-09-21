@@ -13,6 +13,7 @@ const InvoiceViewPage = () => {
   const [invoice, setInvoice] = useState(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
+  const [downloadingPdf, setDownloadingPdf] = useState(false);
 
   useEffect(() => {
     const fetchInvoice = async () => {
@@ -60,6 +61,46 @@ const InvoiceViewPage = () => {
     window.print();
   };
 
+  const handleDownloadPdf = async () => {
+    try {
+      setDownloadingPdf(true);
+      const token = localStorage.getItem('token');
+      const response = await fetch(`http://localhost:5000/api/v1/invoices/${id}/pdf`, {
+        headers: { Authorization: `Bearer ${token}` }
+      });
+      
+      if (!response.ok) {
+        throw new Error('Failed to generate PDF');
+      }
+      
+      // Get filename from Content-Disposition header if possible
+      let filename = `Invoice-${invoice.invoiceNumber}.pdf`;
+      const disposition = response.headers.get('content-disposition');
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
+        const matches = filenameRegex.exec(disposition);
+        if (matches != null && matches[1]) { 
+          filename = matches[1].replace(/['"]/g, '');
+        }
+      }
+
+      const blob = await response.blob();
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.setAttribute('download', filename);
+      document.body.appendChild(link);
+      link.click();
+      link.parentNode.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch (err) {
+      console.error('Error downloading PDF:', err);
+      alert('Failed to download PDF. Please try again.');
+    } finally {
+      setDownloadingPdf(false);
+    }
+  };
+
   return (
     <div className="min-h-screen bg-gray-100 py-8 print:bg-white print:py-0">
       <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -82,10 +123,17 @@ const InvoiceViewPage = () => {
               </button>
             )}
             <button 
+              onClick={handleDownloadPdf}
+              disabled={downloadingPdf}
+              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+            >
+              {downloadingPdf ? 'Generating...' : 'Download PDF'}
+            </button>
+            <button 
               onClick={handlePrint}
               className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
             >
-              Print Invoice
+              Print
             </button>
           </div>
         </div>

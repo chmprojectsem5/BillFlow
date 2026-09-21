@@ -10,6 +10,7 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/calculate', validateRequest(calculateInvoiceSchema), invoiceController.calculatePreview);
+router.get('/:id/pdf', invoiceController.downloadPdf);
 router.post('/:id/finalize', invoiceController.finalize);
 
 router.route('/')
