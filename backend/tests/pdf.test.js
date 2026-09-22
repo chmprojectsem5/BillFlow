@@ -107,7 +107,8 @@ test('Phase 11 — PDF Generation', async (t) => {
       assert.ok(res.headers.get('content-disposition').includes('attachment; filename="Invoice-'));
       
       const arrayBuffer = await res.arrayBuffer();
-      const pdfBuffer = Buffer.from(arrayBuffer);
+      const pdfBuffer = Buffer.alloc(arrayBuffer.byteLength);
+      Buffer.from(arrayBuffer).copy(pdfBuffer);
       
       assert.ok(pdfBuffer.length > 100);
       assert.strictEqual(pdfBuffer.toString('utf8', 0, 5), '%PDF-');
@@ -120,8 +121,24 @@ test('Phase 11 — PDF Generation', async (t) => {
       });
       if (!res.ok) console.error('Error:', await res.text());
       const arrayBuffer = await res.arrayBuffer();
-      console.log('Multi-page PDF size:', arrayBuffer.byteLength);
-      const pdfData = await pdfParse(Buffer.from(arrayBuffer));
+      const pdfBuffer = Buffer.alloc(arrayBuffer.byteLength);
+      Buffer.from(arrayBuffer).copy(pdfBuffer);
+      console.log('Multi-page PDF size:', pdfBuffer.byteLength);
+      let pdfData;
+      let attempts = 0;
+      while (attempts < 3) {
+        try {
+          pdfData = await pdfParse(pdfBuffer);
+          break;
+        } catch (e) {
+          attempts++;
+          if (attempts === 3) {
+            console.error('Failed to parse PDF after 3 attempts');
+            throw e;
+          }
+          await new Promise(r => setTimeout(r, 500));
+        }
+      }
       
       assert.ok(pdfData.numpages > 1, 'PDF should have more than 1 page');
       

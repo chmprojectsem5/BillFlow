@@ -7,6 +7,7 @@ const itemRoute = require('./item.route');
 const taxConfigRoute = require('./taxConfig.route');
 const invoiceRoute = require('./invoice.route');
 const inventoryRoute = require('./inventory.route');
+const dashboardRoute = require('./dashboard.route');
 
 const router = express.Router();
 
@@ -18,5 +19,6 @@ router.use('/items', itemRoute);
 router.use('/tax-config', taxConfigRoute);
 router.use('/invoices', invoiceRoute);
 router.use('/inventory', inventoryRoute);
+router.use('/dashboard', dashboardRoute);
 
 module.exports = router;

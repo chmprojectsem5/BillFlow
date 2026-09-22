@@ -13,5 +13,6 @@ module.exports = {
   mongoUri: process.env.MONGO_URI,
   jwtSecret: process.env.JWT_SECRET,
   nodeEnv: process.env.NODE_ENV || 'development',
-  customDnsServers: process.env.CUSTOM_DNS_SERVERS ? process.env.CUSTOM_DNS_SERVERS.split(',') : null
+  customDnsServers: process.env.CUSTOM_DNS_SERVERS ? process.env.CUSTOM_DNS_SERVERS.split(',') : null,
+  timezone: process.env.APP_TIMEZONE || 'Asia/Kolkata'
 };

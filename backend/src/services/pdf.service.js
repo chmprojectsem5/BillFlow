@@ -1,14 +1,8 @@
-const pdfmake = require('pdfmake');
+const PdfPrinter = require('pdfmake/js/Printer').default || require('pdfmake/js/Printer');
+const URLResolver = require('pdfmake/js/URLResolver').default || require('pdfmake/js/URLResolver');
 
-// Define font configurations for pdfmake
-pdfmake.fonts = {
-  Helvetica: {
-    normal: 'Helvetica',
-    bold: 'Helvetica-Bold',
-    italics: 'Helvetica-Oblique',
-    bolditalics: 'Helvetica-BoldOblique'
-  }
-};
+// We define the font configurations inside the generator or recreate it per request
+// to avoid pdfmake mutating a shared global object during concurrent requests.
 
 const formatCurrency = (paise) => {
   if (paise === null || paise === undefined || isNaN(paise)) return '₹0.00';
@@ -278,7 +272,19 @@ const generateInvoicePdf = async (invoice) => {
     }
   };
 
-  return await pdfmake.createPdf(docDefinition).getStream();
+  const fonts = {
+    Helvetica: {
+      normal: 'Helvetica',
+      bold: 'Helvetica-Bold',
+      italics: 'Helvetica-Oblique',
+      bolditalics: 'Helvetica-BoldOblique'
+    }
+  };
+
+  const printer = new PdfPrinter(fonts, null, new URLResolver(null));
+  const pdfDoc = await printer.createPdfKitDocument(docDefinition);
+  
+  return pdfDoc;
 };
 
 module.exports = {
