@@ -12,6 +12,9 @@ import InvoiceCreatePage from './pages/InvoiceCreatePage';
 import InvoiceViewPage from './pages/InvoiceViewPage';
 import InvoiceHistoryPage from './pages/InvoiceHistoryPage';
 import InventoryPage from './pages/InventoryPage';
+import Reports from './pages/Reports';
+import SalesReport from './pages/SalesReport';
+import GSTReport from './pages/GSTReport';
 import './App.css';
 
 function App() {
@@ -90,6 +93,30 @@ function App() {
             element={
               <ProtectedRoute>
                 <InventoryPage />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports"
+            element={
+              <ProtectedRoute>
+                <Reports />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/sales"
+            element={
+              <ProtectedRoute>
+                <SalesReport />
+              </ProtectedRoute>
+            }
+          />
+          <Route
+            path="/reports/gst"
+            element={
+              <ProtectedRoute>
+                <GSTReport />
               </ProtectedRoute>
             }
           />

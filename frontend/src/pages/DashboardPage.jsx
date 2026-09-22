@@ -192,6 +192,7 @@ const DashboardPage = () => {
           <Link to="/inventory" className="text-gray-600 hover:text-gray-900 font-medium">Inventory</Link>
           <Link to="/invoice-history" className="text-gray-600 hover:text-gray-900 font-medium">Invoice History</Link>
           <Link to="/tax-config" className="text-gray-600 hover:text-gray-900 font-medium">Tax Config</Link>
+          <Link to="/reports" className="text-gray-600 hover:text-gray-900 font-medium border-l border-gray-300 pl-4">Reports</Link>
           <div className="flex-1"></div>
           <Link to="/invoices/new" className="px-4 py-2 border border-transparent rounded-md shadow-sm text-sm font-medium text-white bg-indigo-600 hover:bg-indigo-700">
             + Create Invoice
@@ -221,6 +222,7 @@ const DashboardPage = () => {
                     <Link to="/invoices/new" className="block text-indigo-600 hover:text-indigo-900">Create new invoice &rarr;</Link>
                     <Link to="/inventory" className="block text-indigo-600 hover:text-indigo-900">Manage stock &rarr;</Link>
                     <Link to="/customers" className="block text-indigo-600 hover:text-indigo-900">View customer list &rarr;</Link>
+                    <Link to="/reports" className="block text-indigo-600 hover:text-indigo-900">View financial reports &rarr;</Link>
                   </div>
                 </div>
               </div>
