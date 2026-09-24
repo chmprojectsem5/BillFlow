@@ -22,7 +22,6 @@ const createCustomerSchema = z.object({
   notes: z.string().max(2000).optional()
 }).strict();
 
-// Schema for PATCH (Update)
 const updateCustomerSchema = z.object({
   name: z.string().min(1, 'Name cannot be empty').max(200).optional(),
   customerType: z.enum(['Individual', 'Business']).optional(),
@@ -44,4 +43,14 @@ const updateCustomerSchema = z.object({
   notes: z.string().max(2000).optional()
 }).strict();
 
-module.exports = { createCustomerSchema, updateCustomerSchema };
+// Schema for GET (List) query parameters
+const customerQuerySchema = z.object({
+  page: z.coerce.number().int().min(1, 'Page must be 1 or greater').default(1),
+  limit: z.coerce.number().int().min(1, 'Limit must be 1 or greater').max(100, 'Limit cannot exceed 100').default(20),
+  search: z.string().max(50).optional(),
+  customerType: z.enum(['Individual', 'Business']).optional(),
+  sort: z.enum(['name', 'createdAt']).optional(),
+  order: z.enum(['asc', 'desc']).optional()
+}).strict();
+
+module.exports = { createCustomerSchema, updateCustomerSchema, customerQuerySchema };

@@ -4,8 +4,50 @@ const AppError = require('../utils/AppError');
 /**
  * Get all items for the authenticated business.
  */
-const getItems = async (businessId) => {
-  return await Item.find({ businessId }).sort({ createdAt: -1 });
+const getItems = async (businessId, query = {}) => {
+  const { page = 1, limit = 20, search, type, isActive, sort = 'createdAt', order = 'desc' } = query;
+  
+  const filter = { businessId };
+  
+  if (type) {
+    filter.type = type;
+  }
+
+  if (isActive !== undefined) {
+    filter.isActive = isActive === 'true';
+  }
+  
+  if (search) {
+    const escapedSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    filter.$or = [
+      { name: { $regex: escapedSearch, $options: 'i' } },
+      { sku: { $regex: escapedSearch, $options: 'i' } }
+    ];
+  }
+
+  const sortDirection = order === 'asc' ? 1 : -1;
+  const sortObj = { [sort]: sortDirection, _id: -1 };
+
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    Item.find(filter).sort(sortObj).skip(skip).limit(limit),
+    Item.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrevious: page > 1
+    }
+  };
 };
 
 /**

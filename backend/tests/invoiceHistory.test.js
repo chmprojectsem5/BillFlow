@@ -144,21 +144,18 @@ test('Phase 12 — Invoice History Integration', async (t) => {
       assert.strictEqual(body.data.pagination.totalPages, 3);
     });
 
-    await t.test('Pagination: maximum limit enforcement', async () => {
+    await t.test('Pagination: maximum limit enforcement returns 400', async () => {
       const res = await fetch(`${BASE}/invoices?limit=500`, {
         headers: { Authorization: `Bearer ${userA.token}` }
       });
-      const body = await res.json();
-      assert.strictEqual(body.data.pagination.limit, 100);
+      assert.strictEqual(res.status, 400);
     });
 
-    await t.test('Pagination: invalid parameters normalized safely', async () => {
+    await t.test('Pagination: invalid parameters return 400', async () => {
       const res = await fetch(`${BASE}/invoices?page=invalid&limit=-5`, {
         headers: { Authorization: `Bearer ${userA.token}` }
       });
-      const body = await res.json();
-      assert.strictEqual(body.data.pagination.page, 1);
-      assert.strictEqual(body.data.pagination.limit, 20);
+      assert.strictEqual(res.status, 400);
     });
 
     await t.test('Deterministic ordering', async () => {

@@ -4,8 +4,48 @@ const AppError = require('../utils/AppError');
 /**
  * Get all customers for the authenticated business.
  */
-const getCustomers = async (businessId) => {
-  return await Customer.find({ businessId }).sort({ createdAt: -1 });
+const getCustomers = async (businessId, query = {}) => {
+  const { page = 1, limit = 20, search, customerType, sort = 'createdAt', order = 'desc' } = query;
+  
+  const filter = { businessId };
+  
+  if (customerType) {
+    filter.customerType = customerType;
+  }
+  
+  if (search) {
+    const escapedSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    filter.$or = [
+      { name: { $regex: escapedSearch, $options: 'i' } },
+      { email: { $regex: escapedSearch, $options: 'i' } },
+      { phone: { $regex: escapedSearch, $options: 'i' } },
+      { gstin: { $regex: escapedSearch, $options: 'i' } }
+    ];
+  }
+
+  const sortDirection = order === 'asc' ? 1 : -1;
+  const sortObj = { [sort]: sortDirection, _id: -1 };
+
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    Customer.find(filter).sort(sortObj).skip(skip).limit(limit),
+    Customer.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrevious: page > 1
+    }
+  };
 };
 
 /**

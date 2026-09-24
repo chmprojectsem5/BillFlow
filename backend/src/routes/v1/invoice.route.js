@@ -2,7 +2,7 @@ const express = require('express');
 const { protect } = require('../../middleware/auth');
 const invoiceController = require('../../controllers/invoice.controller');
 const validateRequest = require('../../middleware/validateRequest');
-const { createDraftInvoiceSchema, updateDraftInvoiceSchema, calculateInvoiceSchema } = require('../../validators/invoice.validator');
+const { createDraftInvoiceSchema, updateDraftInvoiceSchema, calculateInvoiceSchema, invoiceQuerySchema } = require('../../validators/invoice.validator');
 
 const router = express.Router();
 
@@ -14,7 +14,7 @@ router.get('/:id/pdf', invoiceController.downloadPdf);
 router.post('/:id/finalize', invoiceController.finalize);
 
 router.route('/')
-  .get(invoiceController.getInvoices)
+  .get(validateRequest(invoiceQuerySchema, 'query'), invoiceController.getInvoices)
   .post(validateRequest(createDraftInvoiceSchema), invoiceController.createDraft);
 
 router.route('/:id')

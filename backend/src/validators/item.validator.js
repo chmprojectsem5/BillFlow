@@ -17,7 +17,6 @@ const createItemSchema = z.object({
   notes: z.string().max(2000).optional()
 }).strict();
 
-// Schema for PATCH (Update)
 const updateItemSchema = z.object({
   name: z.string().min(1, 'Name cannot be empty').max(200).optional(),
   type: z.enum(['Product', 'Service'], { message: 'Type must be Product or Service' }).optional(),
@@ -34,4 +33,15 @@ const updateItemSchema = z.object({
   notes: z.string().max(2000).optional()
 }).strict();
 
-module.exports = { createItemSchema, updateItemSchema };
+// Schema for GET (List) query parameters
+const itemQuerySchema = z.object({
+  page: z.coerce.number().int().min(1, 'Page must be 1 or greater').default(1),
+  limit: z.coerce.number().int().min(1, 'Limit must be 1 or greater').max(100, 'Limit cannot exceed 100').default(20),
+  search: z.string().max(50).optional(),
+  type: z.enum(['Product', 'Service']).optional(),
+  isActive: z.enum(['true', 'false']).optional(),
+  sort: z.enum(['name', 'unitPrice', 'createdAt']).optional(),
+  order: z.enum(['asc', 'desc']).optional()
+}).strict();
+
+module.exports = { createItemSchema, updateItemSchema, itemQuerySchema };

@@ -7,6 +7,72 @@ const Item = require('../models/Item');
 const TaxConfig = require('../models/TaxConfig');
 const { calculateGST, determineSupplyType, PRICING_MODE, TAX_TREATMENT } = require('./gstCalculation.service');
 const AppError = require('../utils/AppError');
+const { getBounds } = require('../utils/timezone');
+
+/**
+ * Get all invoices for the authenticated business with search, filtering and pagination.
+ */
+const getInvoices = async (businessId, query = {}) => {
+  const { page = 1, limit = 20, search, status, startDate, endDate, customerId, sort = 'date', order = 'desc' } = query;
+  
+  const filter = { businessId: new mongoose.Types.ObjectId(businessId) };
+  
+  if (status) {
+    filter.status = status;
+  }
+
+  if (customerId) {
+    filter['customerSnapshot.customerId'] = new mongoose.Types.ObjectId(customerId);
+  }
+
+  if (startDate && endDate) {
+    const { startBound, endBound } = getBounds(startDate, endDate);
+    filter.date = { $gte: startBound, $lt: endBound };
+  }
+  
+  if (search) {
+    const escapedSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
+    filter.$or = [
+      { invoiceNumber: { $regex: escapedSearch, $options: 'i' } },
+      { 'customerSnapshot.name': { $regex: escapedSearch, $options: 'i' } }
+    ];
+  }
+
+  const sortDirection = order === 'asc' ? 1 : -1;
+  const sortMap = {
+    date: 'date',
+    invoiceNumber: 'invoiceNumber',
+    grandTotal: 'summary.grandTotal',
+    createdAt: 'createdAt'
+  };
+  const mappedSort = sortMap[sort] || 'date';
+  const sortObj = { [mappedSort]: sortDirection, _id: -1 };
+
+  const skip = (page - 1) * limit;
+
+  const [data, total] = await Promise.all([
+    Invoice.find(filter)
+      .select('-items -businessSnapshot -notes -terms') // Exclude large fields
+      .sort(sortObj)
+      .skip(skip)
+      .limit(limit),
+    Invoice.countDocuments(filter)
+  ]);
+
+  const totalPages = Math.ceil(total / limit);
+
+  return {
+    data,
+    pagination: {
+      total,
+      page,
+      limit,
+      totalPages,
+      hasNext: page < totalPages,
+      hasPrevious: page > 1
+    }
+  };
+};
 
 /**
  * Perform all authoritative calculations for an invoice payload and generate the snapshots.
@@ -330,6 +396,7 @@ const finalizeInvoice = async (businessId, invoiceId) => {
 };
 
 module.exports = {
+  getInvoices,
   calculateInvoice,
   createDraftInvoice,
   updateDraftInvoice,

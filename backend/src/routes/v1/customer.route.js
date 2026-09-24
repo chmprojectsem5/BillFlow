@@ -1,7 +1,7 @@
 const express = require('express');
 const customerController = require('../../controllers/customer.controller');
 const validateRequest = require('../../middleware/validateRequest');
-const { createCustomerSchema, updateCustomerSchema } = require('../../validators/customer.validator');
+const { createCustomerSchema, updateCustomerSchema, customerQuerySchema } = require('../../validators/customer.validator');
 const { protect } = require('../../middleware/auth');
 
 const router = express.Router();
@@ -10,7 +10,7 @@ const router = express.Router();
 router.use(protect);
 
 router.route('/')
-  .get(customerController.getCustomers)
+  .get(validateRequest(customerQuerySchema, 'query'), customerController.getCustomers)
   .post(validateRequest(createCustomerSchema), customerController.createCustomer);
 
 router.route('/:id')

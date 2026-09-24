@@ -1,7 +1,13 @@
-const validateRequest = (schema) => {
+const validateRequest = (schema, source = 'body') => {
   return (req, res, next) => {
     try {
-      schema.parse(req.body);
+      const parsed = schema.parse(req[source]);
+      if (source === 'query') {
+        req.query = parsed; // Reassign
+        req.validatedQuery = parsed; // Safe fallback
+      } else {
+        req[source] = parsed;
+      }
       next();
     } catch (error) {
       // Zod v4 uses .issues, Zod v3 used .errors

@@ -2,10 +2,13 @@ const customerService = require('../services/customer.service');
 
 const getCustomers = async (req, res, next) => {
   try {
-    const customers = await customerService.getCustomers(req.user.businessId);
+    const result = await customerService.getCustomers(req.user.businessId, req.validatedQuery || req.query);
     res.status(200).json({
       success: true,
-      data: { customers }
+      data: { 
+        customers: result.data,
+        pagination: result.pagination
+      }
     });
   } catch (error) {
     next(error);

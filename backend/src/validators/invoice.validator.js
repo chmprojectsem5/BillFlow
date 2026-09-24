@@ -21,14 +21,27 @@ const createDraftInvoiceSchema = z.object({
 // Schema for Draft Invoice Update (same as create, but optional fields where it makes sense, though typically it's a full replace)
 const updateDraftInvoiceSchema = createDraftInvoiceSchema.partial();
 
-// Schema for ephemeral calculation (can omit date/terms etc., just needs customer and items)
 const calculateInvoiceSchema = z.object({
   customerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Customer ID').optional(), // Sometimes frontend hasn't picked customer yet
   items: z.array(invoiceItemSchema)
 });
 
+// Schema for GET (List) query parameters
+const invoiceQuerySchema = z.object({
+  page: z.coerce.number().int().min(1, 'Page must be 1 or greater').default(1),
+  limit: z.coerce.number().int().min(1, 'Limit must be 1 or greater').max(100, 'Limit cannot exceed 100').default(20),
+  search: z.string().max(50).optional(),
+  status: z.enum(['Draft', 'Unpaid', 'Partially Paid', 'Paid', 'Overdue']).optional(),
+  startDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid startDate format, must be YYYY-MM-DD').optional(),
+  endDate: z.string().regex(/^\d{4}-\d{2}-\d{2}$/, 'Invalid endDate format, must be YYYY-MM-DD').optional(),
+  customerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Customer ID').optional(),
+  sort: z.enum(['date', 'invoiceNumber', 'grandTotal', 'createdAt']).optional(),
+  order: z.enum(['asc', 'desc']).optional()
+}).strict();
+
 module.exports = {
   createDraftInvoiceSchema,
   updateDraftInvoiceSchema,
-  calculateInvoiceSchema
+  calculateInvoiceSchema,
+  invoiceQuerySchema
 };

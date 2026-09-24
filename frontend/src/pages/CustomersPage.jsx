@@ -1,14 +1,26 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 
 const CustomersPage = () => {
   const { user, business, logout } = useAuth();
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parseInt(searchParams.get('page')) || 1;
+  const searchStr = searchParams.get('search') || '';
+  const customerType = searchParams.get('customerType') || '';
+  const sort = searchParams.get('sort') || 'createdAt';
+  const order = searchParams.get('order') || 'desc';
+
   const [customers, setCustomers] = useState([]);
+  const [pagination, setPagination] = useState({ totalPages: 1, hasNext: false, hasPrevious: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
+  // Local state for debouncing search input
+  const [searchInput, setSearchInput] = useState(searchStr);
+
   const [showModal, setShowModal] = useState(false);
   const [editingCustomer, setEditingCustomer] = useState(null);
   const [formError, setFormError] = useState('');
@@ -18,14 +30,45 @@ const CustomersPage = () => {
     city: '', state: '', pinCode: '', country: 'India', gstin: '', pan: '', notes: ''
   });
 
+  // Debounce search
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== searchStr) {
+        updateParams({ search: searchInput, page: 1 });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
   useEffect(() => {
     fetchCustomers();
-  }, []);
+  }, [page, searchStr, customerType, sort, order]);
+
+  const updateParams = (newParams) => {
+    const params = new URLSearchParams(searchParams);
+    for (const key in newParams) {
+      if (newParams[key] === '' || newParams[key] === null) {
+        params.delete(key);
+      } else {
+        params.set(key, newParams[key]);
+      }
+    }
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearchParams(new URLSearchParams());
+  };
 
   const fetchCustomers = async () => {
     try {
-      const res = await api.get('/customers');
+      setLoading(true);
+      const res = await api.get('/customers', {
+        params: { page, search: searchStr, customerType, sort, order }
+      });
       setCustomers(res.data.data.customers);
+      setPagination(res.data.data.pagination);
     } catch (err) {
       setError('Failed to fetch customers.');
     } finally {
@@ -122,11 +165,47 @@ const CustomersPage = () => {
           <button onClick={openAddModal} className="auth-btn btn-sm">Add Customer</button>
         </div>
 
+        <div className="filter-controls" style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
+          <input 
+            type="text" 
+            placeholder="Search name, email, phone, GSTIN..." 
+            value={searchInput} 
+            onChange={e => setSearchInput(e.target.value)} 
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <select 
+            value={customerType} 
+            onChange={e => updateParams({ customerType: e.target.value, page: 1 })}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="">All Types</option>
+            <option value="Business">Business</option>
+            <option value="Individual">Individual</option>
+          </select>
+          <select 
+            value={sort} 
+            onChange={e => updateParams({ sort: e.target.value, page: 1 })}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="createdAt">Date Added</option>
+            <option value="name">Name</option>
+          </select>
+          <select 
+            value={order} 
+            onChange={e => updateParams({ order: e.target.value, page: 1 })}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+          <button onClick={clearFilters} className="auth-btn btn-sm secondary">Clear Filters</button>
+        </div>
+
         {error && <div className="profile-msg error">{error}</div>}
 
         {customers.length === 0 ? (
           <div className="empty-state">
-            <p>No customers found. Add your first customer.</p>
+            <p>No customers found matching your criteria.</p>
           </div>
         ) : (
           <div className="data-table-wrapper">
@@ -160,6 +239,30 @@ const CustomersPage = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+            <span style={{ fontSize: '0.875rem', color: '#666' }}>
+              Showing page {pagination.page} of {pagination.totalPages}
+            </span>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button 
+                disabled={!pagination.hasPrevious} 
+                onClick={() => updateParams({ page: pagination.page - 1 })}
+                className="auth-btn btn-sm secondary"
+              >
+                Previous
+              </button>
+              <button 
+                disabled={!pagination.hasNext} 
+                onClick={() => updateParams({ page: pagination.page + 1 })}
+                className="auth-btn btn-sm secondary"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </main>

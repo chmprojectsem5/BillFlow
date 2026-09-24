@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+import { Link, useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
 
 const emptyProductForm = {
@@ -21,10 +21,21 @@ const formatPaise = (paise) => {
 
 const ItemsPage = () => {
   const { user, business, logout } = useAuth();
+  
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parseInt(searchParams.get('page')) || 1;
+  const searchStr = searchParams.get('search') || '';
+  const filterType = searchParams.get('type') || ''; // '' = All, 'Product', 'Service'
+  const isActiveStr = searchParams.get('isActive') || ''; // '' = All, 'true' = Active, 'false' = Inactive
+  const sort = searchParams.get('sort') || 'createdAt';
+  const order = searchParams.get('order') || 'desc';
+
   const [items, setItems] = useState([]);
+  const [pagination, setPagination] = useState({ totalPages: 1, hasNext: false, hasPrevious: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
-  const [filter, setFilter] = useState('All'); // All | Product | Service
+  
+  const [searchInput, setSearchInput] = useState(searchStr);
 
   const [showModal, setShowModal] = useState(false);
   const [editingItem, setEditingItem] = useState(null);
@@ -33,13 +44,43 @@ const ItemsPage = () => {
   const [formData, setFormData] = useState({ ...emptyProductForm });
 
   useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== searchStr) {
+        updateParams({ search: searchInput, page: 1 });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  useEffect(() => {
     fetchItems();
-  }, []);
+  }, [page, searchStr, filterType, isActiveStr, sort, order]);
+
+  const updateParams = (newParams) => {
+    const params = new URLSearchParams(searchParams);
+    for (const key in newParams) {
+      if (newParams[key] === '' || newParams[key] === null) {
+        params.delete(key);
+      } else {
+        params.set(key, newParams[key]);
+      }
+    }
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearchParams(new URLSearchParams());
+  };
 
   const fetchItems = async () => {
     try {
-      const res = await api.get('/items');
+      setLoading(true);
+      const res = await api.get('/items', {
+        params: { page, search: searchStr, type: filterType, isActive: isActiveStr, sort, order }
+      });
       setItems(res.data.data.items);
+      setPagination(res.data.data.pagination);
     } catch (err) {
       setError('Failed to fetch items.');
     } finally {
@@ -47,7 +88,7 @@ const ItemsPage = () => {
     }
   };
 
-  const filteredItems = filter === 'All' ? items : items.filter(i => i.type === filter);
+  
 
   const openAddModal = (type = 'Product') => {
     setEditingItem(null);
@@ -176,22 +217,59 @@ const ItemsPage = () => {
 
         {/* Filter Tabs */}
         <div className="filter-tabs">
-          {['All', 'Product', 'Service'].map(t => (
+          {['', 'Product', 'Service'].map(t => (
             <button
-              key={t}
-              className={`filter-tab ${filter === t ? 'active' : ''}`}
-              onClick={() => setFilter(t)}
+              key={t || 'All'}
+              className={`filter-tab ${filterType === t ? 'active' : ''}`}
+              onClick={() => updateParams({ type: t, page: 1 })}
             >
-              {t === 'All' ? 'All Items' : t + 's'}
+              {t === '' ? 'All Items' : t + 's'}
             </button>
           ))}
         </div>
 
+        <div className="filter-controls" style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
+          <input 
+            type="text" 
+            placeholder="Search name, SKU..." 
+            value={searchInput} 
+            onChange={e => setSearchInput(e.target.value)} 
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          />
+          <select 
+            value={isActiveStr} 
+            onChange={e => updateParams({ isActive: e.target.value, page: 1 })}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="">All Status</option>
+            <option value="true">Active</option>
+            <option value="false">Inactive</option>
+          </select>
+          <select 
+            value={sort} 
+            onChange={e => updateParams({ sort: e.target.value, page: 1 })}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="createdAt">Date Added</option>
+            <option value="name">Name</option>
+            <option value="unitPrice">Price</option>
+          </select>
+          <select 
+            value={order} 
+            onChange={e => updateParams({ order: e.target.value, page: 1 })}
+            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
+          >
+            <option value="desc">Descending</option>
+            <option value="asc">Ascending</option>
+          </select>
+          <button onClick={clearFilters} className="auth-btn btn-sm secondary">Clear Filters</button>
+        </div>
+
         {error && <div className="profile-msg error">{error}</div>}
 
-        {filteredItems.length === 0 ? (
+        {items.length === 0 ? (
           <div className="empty-state">
-            <p>{filter === 'All' ? 'No items found. Add your first product or service.' : `No ${filter.toLowerCase()}s found.`}</p>
+            <p>{filterType === '' ? 'No items found matching your criteria.' : `No ${filterType.toLowerCase()}s found.`}</p>
           </div>
         ) : (
           <div className="data-table-wrapper">
@@ -209,7 +287,7 @@ const ItemsPage = () => {
                 </tr>
               </thead>
               <tbody>
-                {filteredItems.map(item => (
+                {items.map(item => (
                   <tr key={item._id} style={!item.isActive ? { opacity: 0.5 } : {}}>
                     <td>{item.name}</td>
                     <td>
@@ -237,6 +315,30 @@ const ItemsPage = () => {
                 ))}
               </tbody>
             </table>
+          </div>
+        )}
+
+        {pagination && pagination.totalPages > 1 && (
+          <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
+            <span style={{ fontSize: '0.875rem', color: '#666' }}>
+              Showing page {pagination.page} of {pagination.totalPages}
+            </span>
+            <div style={{ display: 'flex', gap: '5px' }}>
+              <button 
+                disabled={!pagination.hasPrevious} 
+                onClick={() => updateParams({ page: pagination.page - 1 })}
+                className="auth-btn btn-sm secondary"
+              >
+                Previous
+              </button>
+              <button 
+                disabled={!pagination.hasNext} 
+                onClick={() => updateParams({ page: pagination.page + 1 })}
+                className="auth-btn btn-sm secondary"
+              >
+                Next
+              </button>
+            </div>
           </div>
         )}
       </main>

@@ -2,10 +2,13 @@ const itemService = require('../services/item.service');
 
 const getItems = async (req, res, next) => {
   try {
-    const items = await itemService.getItems(req.user.businessId);
+    const result = await itemService.getItems(req.user.businessId, req.validatedQuery || req.query);
     res.status(200).json({
       success: true,
-      data: { items }
+      data: { 
+        items: result.data,
+        pagination: result.pagination
+      }
     });
   } catch (error) {
     next(error);

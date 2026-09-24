@@ -3,29 +3,69 @@ import { useNavigate, Link } from 'react-router-dom';
 import axios from 'axios';
 import { formatCurrency, formatDate } from '../utils/formatters';
 
+import { useSearchParams } from 'react-router-dom';
+
 const InvoiceHistoryPage = () => {
+  const [searchParams, setSearchParams] = useSearchParams();
+  const page = parseInt(searchParams.get('page')) || 1;
+  const searchStr = searchParams.get('search') || '';
+  const statusFilter = searchParams.get('status') || '';
+  const startDate = searchParams.get('startDate') || '';
+  const endDate = searchParams.get('endDate') || '';
+  const sort = searchParams.get('sort') || 'date';
+  const order = searchParams.get('order') || 'desc';
+
   const [invoices, setInvoices] = useState([]);
-  const [pagination, setPagination] = useState({
-    page: 1,
-    limit: 20,
-    total: 0,
-    totalPages: 0,
-    hasNext: false,
-    hasPrevious: false
-  });
+  const [pagination, setPagination] = useState({ page: 1, limit: 20, total: 0, totalPages: 0, hasNext: false, hasPrevious: false });
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [downloadingId, setDownloadingId] = useState(null);
   
+  const [searchInput, setSearchInput] = useState(searchStr);
+
   const navigate = useNavigate();
 
-  const fetchInvoices = async (page = 1) => {
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      if (searchInput !== searchStr) {
+        updateParams({ search: searchInput, page: 1 });
+      }
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [searchInput]);
+
+  const updateParams = (newParams) => {
+    const params = new URLSearchParams(searchParams);
+    for (const key in newParams) {
+      if (newParams[key] === '' || newParams[key] === null) {
+        params.delete(key);
+      } else {
+        params.set(key, newParams[key]);
+      }
+    }
+    setSearchParams(params);
+  };
+
+  const clearFilters = () => {
+    setSearchInput('');
+    setSearchParams(new URLSearchParams());
+  };
+
+  const fetchInvoices = async () => {
     try {
       setLoading(true);
       setError('');
       const token = localStorage.getItem('token');
       
-      const res = await axios.get(`http://localhost:5000/api/v1/invoices?page=${page}&limit=${pagination.limit}`, {
+      const queryParams = new URLSearchParams({ page, limit: pagination.limit || 20 });
+      if (searchStr) queryParams.set('search', searchStr);
+      if (statusFilter) queryParams.set('status', statusFilter);
+      if (startDate) queryParams.set('startDate', startDate);
+      if (endDate) queryParams.set('endDate', endDate);
+      if (sort) queryParams.set('sort', sort);
+      if (order) queryParams.set('order', order);
+
+      const res = await axios.get(`http://localhost:5000/api/v1/invoices?${queryParams.toString()}`, {
         headers: { Authorization: `Bearer ${token}` }
       });
       
@@ -40,8 +80,8 @@ const InvoiceHistoryPage = () => {
   };
 
   useEffect(() => {
-    fetchInvoices(1);
-  }, []);
+    fetchInvoices();
+  }, [page, searchStr, statusFilter, startDate, endDate, sort, order]);
 
   const handleDownloadPdf = async (invoice) => {
     try {
@@ -110,6 +150,67 @@ const InvoiceHistoryPage = () => {
           <p className="text-red-800">{error}</p>
         </div>
       )}
+
+      <div className="mb-6 flex flex-wrap gap-4 items-center">
+        <input 
+          type="text" 
+          placeholder="Search Invoice #, Customer..." 
+          value={searchInput} 
+          onChange={e => setSearchInput(e.target.value)} 
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        />
+        <select 
+          value={statusFilter} 
+          onChange={e => updateParams({ status: e.target.value, page: 1 })}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="">All Statuses</option>
+          <option value="Draft">Draft</option>
+          <option value="Unpaid">Unpaid</option>
+          <option value="Partially Paid">Partially Paid</option>
+          <option value="Paid">Paid</option>
+          <option value="Overdue">Overdue</option>
+        </select>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">From</span>
+          <input 
+            type="date" 
+            value={startDate} 
+            onChange={e => updateParams({ startDate: e.target.value, page: 1 })}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          />
+        </div>
+        <div className="flex items-center gap-2">
+          <span className="text-sm text-gray-500">To</span>
+          <input 
+            type="date" 
+            value={endDate} 
+            onChange={e => updateParams({ endDate: e.target.value, page: 1 })}
+            className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+          />
+        </div>
+        <select 
+          value={sort} 
+          onChange={e => updateParams({ sort: e.target.value, page: 1 })}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="date">Date</option>
+          <option value="invoiceNumber">Invoice #</option>
+          <option value="grandTotal">Total Amount</option>
+          <option value="createdAt">Created At</option>
+        </select>
+        <select 
+          value={order} 
+          onChange={e => updateParams({ order: e.target.value, page: 1 })}
+          className="border border-gray-300 rounded-md px-3 py-2 text-sm"
+        >
+          <option value="desc">Descending</option>
+          <option value="asc">Ascending</option>
+        </select>
+        <button onClick={clearFilters} className="text-sm text-indigo-600 hover:text-indigo-900 border border-indigo-600 rounded-md px-3 py-2">
+          Clear Filters
+        </button>
+      </div>
 
       {loading ? (
         <div className="text-center py-10">
@@ -218,14 +319,14 @@ const InvoiceHistoryPage = () => {
                 <div>
                   <nav className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px" aria-label="Pagination">
                     <button
-                      onClick={() => fetchInvoices(pagination.page - 1)}
+                      onClick={() => updateParams({ page: pagination.page - 1 })}
                       disabled={!pagination.hasPrevious}
                       className="relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                     >
                       Previous
                     </button>
                     <button
-                      onClick={() => fetchInvoices(pagination.page + 1)}
+                      onClick={() => updateParams({ page: pagination.page + 1 })}
                       disabled={!pagination.hasNext}
                       className="relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium text-gray-500 hover:bg-gray-50 disabled:bg-gray-100 disabled:text-gray-400"
                     >
