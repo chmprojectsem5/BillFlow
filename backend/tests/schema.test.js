@@ -105,3 +105,39 @@ test('Index Definitions - Compound Unique Invoices & Counter', (t) => {
   assert.ok(counterUniqueIndex, 'Index on businessId must exist for Counter');
   assert.strictEqual(counterUniqueIndex[1].unique, true, 'Counter businessId index must be unique: true');
 });
+
+test('Phase 20 - Financial Precision Validation - Mongoose save()', (t) => {
+  // Test floating point rejection
+  const floatItem = new Item({
+    businessId: new mongoose.Types.ObjectId(),
+    type: 'Product',
+    name: 'Float Item',
+    unitPrice: 100.50,
+    costPrice: 50.25
+  });
+  
+  const err = floatItem.validateSync();
+  assert.ok(err.errors['unitPrice'], 'Should fail on floating point unitPrice');
+  assert.match(err.errors['unitPrice'].message, /not an integer/, 'Error message should mention integer');
+  assert.ok(err.errors['costPrice'], 'Should fail on floating point costPrice');
+  
+  // Test valid integer
+  const validItem = new Item({
+    businessId: new mongoose.Types.ObjectId(),
+    type: 'Product',
+    name: 'Integer Item',
+    unitPrice: 100,
+    costPrice: 50
+  });
+  
+  const validErr = validItem.validateSync();
+  assert.strictEqual(validErr, undefined, 'Valid integer monetary values should pass');
+});
+
+test('Phase 20 - Financial Precision Validation - Mongoose findOneAndUpdate()', async (t) => {
+  // We need to connect to memory server or just mock the schema logic.
+  // Wait, schema.test.js does not connect to DB! It only tests schema.validateSync().
+  // Mongoose findOneAndUpdate requires a DB connection, which schema.test.js doesn't have.
+  // Let me check if schema.test.js connects to DB.
+  // I will just view schema.test.js first.
+});

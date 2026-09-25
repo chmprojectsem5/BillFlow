@@ -20,7 +20,8 @@ const paymentSchema = new mongoose.Schema({
   amount: { 
     type: Number, 
     required: true, 
-    min: [0, 'Amount cannot be negative'] // paise
+    min: [0, 'Amount cannot be negative'],
+    validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } // paise
   },
   paymentDate: { type: Date, required: true },
   method: { 

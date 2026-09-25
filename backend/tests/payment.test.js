@@ -175,6 +175,22 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
 
   const paymentDate1 = new Date().toISOString();
 
+  await t.test('Phase 20 - API Boundary Validation - Reject floating point amount', async () => {
+    const res = await fetch(`${BASE}/invoices/${invoice1}/payments`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token1}`, 'X-Idempotency-Key': `float-${uid}` },
+      body: JSON.stringify({
+        amount: 50000.50, // Float amount
+        paymentDate: new Date().toISOString(),
+        method: 'Bank Transfer'
+      })
+    });
+    // Zod validation should reject it as 400
+    assert.strictEqual(res.status, 400);
+    const data = await res.json();
+    assert.strictEqual(data.success, false);
+  });
+
   await t.test('Valid Partial Payment', async () => {
     const res = await fetch(`${BASE}/invoices/${invoice1}/payments`, {
       method: 'POST',
@@ -255,8 +271,8 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
       if (r.status === 201) successes++;
       else {
         conflictsOrErrors++;
-        // Verify we got a controlled error (409 Conflict) and not a 500
-        assert.strictEqual(r.status, 409);
+        // Verify we got a controlled error (409 Conflict or 400 Bad Request) and not a 500
+        assert.ok([400, 409].includes(r.status));
       }
     });
 

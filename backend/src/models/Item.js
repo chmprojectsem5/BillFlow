@@ -20,13 +20,15 @@ const itemSchema = new mongoose.Schema({
   unitPrice: { 
     type: Number, 
     required: true,
-    min: [0, 'Selling price cannot be negative'] 
+    min: [0, 'Selling price cannot be negative'],
+    validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' }
     // Stored in paise natively 
   },
   costPrice: {
     type: Number,
     default: null,
-    min: [0, 'Cost price cannot be negative']
+    min: [0, 'Cost price cannot be negative'],
+    validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' }
     // Stored in paise natively
   },
   gstRate: { 

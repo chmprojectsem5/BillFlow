@@ -11,19 +11,19 @@ const invoiceItemSnapshotSchema = new mongoose.Schema({
   taxTreatment: { type: String, enum: ['TAXABLE', 'NIL_RATED', 'EXEMPT', 'NON_GST'] },
   quantity: { type: Number, required: true, min: 0 },
   unit: { type: String },
-  unitPrice: { type: Number, required: true, min: 0 }, // paise
+  unitPrice: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
   pricingMode: { type: String, enum: ['INCLUSIVE', 'EXCLUSIVE'] },
   gstRate: { type: Number, required: true, min: 0 },
   cgstRate: { type: Number, default: 0, min: 0 },
   sgstRate: { type: Number, default: 0, min: 0 },
   igstRate: { type: Number, default: 0, min: 0 },
-  discount: { type: Number, default: 0, min: 0 }, // paise
-  taxableValue: { type: Number, required: true, min: 0 }, // paise
-  cgst: { type: Number, default: 0, min: 0 }, // paise
-  sgst: { type: Number, default: 0, min: 0 }, // paise
-  igst: { type: Number, default: 0, min: 0 }, // paise
-  taxAmount: { type: Number, required: true, min: 0 }, // paise
-  lineTotal: { type: Number, required: true, min: 0 } // paise
+  discount: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+  taxableValue: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+  cgst: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+  sgst: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+  igst: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+  taxAmount: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+  lineTotal: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } } // paise
 }, { _id: false });
 
 const invoiceSchema = new mongoose.Schema({
@@ -63,18 +63,18 @@ const invoiceSchema = new mongoose.Schema({
   },
   items: [invoiceItemSnapshotSchema],
   summary: {
-    subTotal: { type: Number, required: true, min: 0 }, // paise
-    discountTotal: { type: Number, default: 0, min: 0 }, // paise
-    taxableTotal: { type: Number, required: true, min: 0 }, // paise
-    cgstTotal: { type: Number, default: 0, min: 0 }, // paise
-    sgstTotal: { type: Number, default: 0, min: 0 }, // paise
-    igstTotal: { type: Number, default: 0, min: 0 }, // paise
-    taxTotal: { type: Number, required: true, min: 0 }, // paise
-    grandTotal: { type: Number, required: true, min: 0 } // paise
+    subTotal: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    discountTotal: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    taxableTotal: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    cgstTotal: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    sgstTotal: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    igstTotal: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    taxTotal: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    grandTotal: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } } // paise
   },
   paymentStatus: {
-    paidAmount: { type: Number, default: 0, min: 0 }, // paise
-    balanceDue: { type: Number, required: true, min: 0 } // paise
+    paidAmount: { type: Number, default: 0, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } }, // paise
+    balanceDue: { type: Number, required: true, min: 0, validate: { validator: function(v) { return v == null || Number.isInteger(v); }, message: '{VALUE} is not an integer' } } // paise
   },
   notes: { type: String },
   terms: { type: String }
