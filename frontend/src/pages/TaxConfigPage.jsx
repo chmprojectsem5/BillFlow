@@ -1,7 +1,15 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
-import { Link } from 'react-router-dom';
+
 import api from '../api/axios';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Modal from '../components/ui/Modal';
+import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';
+import Badge from '../components/ui/Badge';
+import Spinner from '../components/ui/Spinner';
+import { Card } from '../components/ui/Card';
 
 const emptyForm = {
   hsnSac: '', classificationType: 'HSN', description: '', gstRate: '',
@@ -10,7 +18,7 @@ const emptyForm = {
 };
 
 const TaxConfigPage = () => {
-  const { user, business, logout } = useAuth();
+
   const [configs, setConfigs] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -136,222 +144,244 @@ const TaxConfigPage = () => {
 
   const fmt = (paise) => paise != null ? `₹${(paise / 100).toFixed(2)}` : '-';
 
-  if (loading) return <div className="page-loading">Loading tax configurations...</div>;
+  if (loading && configs.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1><Link to="/dashboard" className="header-link">BillFlow-Pro</Link></h1>
-        <div className="dashboard-user-info">
-          <span>{user?.name} — {business?.name}</span>
-          <button onClick={logout} className="logout-btn">Logout</button>
+    <div className="pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Tax Configuration</h1>
+        <Button onClick={openAddModal}>Add HSN/SAC</Button>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+          {error}
         </div>
-      </header>
+      )}
 
-      <main className="dashboard-main">
-        <div className="page-header">
-          <h2>Tax Configuration</h2>
-          <button onClick={openAddModal} className="auth-btn btn-sm">Add HSN/SAC</button>
-        </div>
-
-        {error && <div className="profile-msg error">{error}</div>}
-
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mb-8">
         {/* Lookup Section */}
-        <fieldset className="profile-section" style={{ marginBottom: '1.5rem' }}>
-          <legend>HSN/SAC Lookup</legend>
-          <div className="form-grid">
-            <div className="form-group">
-              <select value={lookupType} onChange={(e) => setLookupType(e.target.value)}>
+        <Card className="p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4 border-b pb-2">HSN/SAC Lookup</h2>
+          <div className="flex flex-wrap gap-4 items-end">
+            <div className="w-1/3 min-w-[120px]">
+              <Select value={lookupType} onChange={(e) => setLookupType(e.target.value)}>
                 <option value="code">By Code</option>
                 <option value="description">By Description</option>
-              </select>
+              </Select>
             </div>
-            <div className="form-group" style={{ display: 'flex', gap: '0.5rem' }}>
-              <input value={lookupQuery} onChange={(e) => setLookupQuery(e.target.value)}
-                placeholder={lookupType === 'code' ? 'e.g. 8471' : 'e.g. laptop'} />
-              <button type="button" onClick={handleLookup} className="auth-btn btn-sm"
-                disabled={lookupLoading}>{lookupLoading ? '...' : 'Search'}</button>
+            <div className="flex-1 flex gap-2">
+              <div className="flex-1">
+                <Input 
+                  value={lookupQuery} 
+                  onChange={(e) => setLookupQuery(e.target.value)}
+                  placeholder={lookupType === 'code' ? 'e.g. 8471' : 'e.g. laptop'} 
+                />
+              </div>
+              <Button type="button" onClick={handleLookup} disabled={lookupLoading}>
+                {lookupLoading ? '...' : 'Search'}
+              </Button>
             </div>
           </div>
+          
           {lookupResults !== null && (
-            <div style={{ marginTop: '0.75rem' }}>
+            <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
               {lookupResults.length === 0 ? (
-                <p className="text-gray">No results found.</p>
+                <div className="p-4 text-center text-gray-500 bg-gray-50">No results found.</div>
               ) : (
-                <div className="data-table-wrapper">
-                  <table className="data-table">
-                    <thead><tr><th>Code</th><th>Type</th><th>Description</th><th>Rate</th><th>Treatment</th></tr></thead>
-                    <tbody>
-                      {lookupResults.map(r => (
-                        <tr key={r._id}>
-                          <td>{r.hsnSac}</td><td><span className={`type-badge ${r.classificationType.toLowerCase()}`}>{r.classificationType}</span></td>
-                          <td>{r.description || '-'}</td><td>{r.gstRate}%</td><td>{r.taxTreatment}</td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
-                </div>
+                <Table>
+                  <Thead>
+                    <Tr>
+                      <Th>Code</Th>
+                      <Th>Type</Th>
+                      <Th>Description</Th>
+                      <Th>Rate</Th>
+                      <Th>Treatment</Th>
+                    </Tr>
+                  </Thead>
+                  <Tbody>
+                    {lookupResults.map(r => (
+                      <Tr key={r._id}>
+                        <Td className="font-medium">{r.hsnSac}</Td>
+                        <Td><Badge status={r.classificationType === 'HSN' ? 'info' : 'purple'}>{r.classificationType}</Badge></Td>
+                        <Td>{r.description || '-'}</Td>
+                        <Td>{r.gstRate}%</Td>
+                        <Td>{r.taxTreatment}</Td>
+                      </Tr>
+                    ))}
+                  </Tbody>
+                </Table>
               )}
             </div>
           )}
-        </fieldset>
+        </Card>
 
         {/* GST Calculator */}
-        <fieldset className="profile-section" style={{ marginBottom: '1.5rem' }}>
-          <legend>GST Calculator</legend>
-          <form onSubmit={handleCalc} className="form-grid">
-            <div className="form-group">
-              <label>Amount (paise)</label>
-              <input type="number" value={calcForm.amountPaise} min="0"
-                onChange={(e) => setCalcForm(p => ({ ...p, amountPaise: e.target.value }))} required />
-            </div>
-            <div className="form-group">
-              <label>GST Rate (%)</label>
-              <input type="number" value={calcForm.gstRate} min="0" max="100" step="0.01"
-                onChange={(e) => setCalcForm(p => ({ ...p, gstRate: e.target.value }))} required />
-            </div>
-            <div className="form-group">
-              <label>Pricing</label>
-              <select value={calcForm.pricingMode} onChange={(e) => setCalcForm(p => ({ ...p, pricingMode: e.target.value }))}>
-                <option value="EXCLUSIVE">Exclusive</option>
-                <option value="INCLUSIVE">Inclusive</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <label>Supply</label>
-              <select value={calcForm.supplyType} onChange={(e) => setCalcForm(p => ({ ...p, supplyType: e.target.value }))}>
-                <option value="INTRA_STATE">Intra-State</option>
-                <option value="INTER_STATE">Inter-State</option>
-              </select>
-            </div>
-            <div className="form-group">
-              <button type="submit" className="auth-btn btn-sm">Calculate</button>
+        <Card className="p-6">
+          <h2 className="text-lg font-medium text-gray-900 mb-4 border-b pb-2">GST Calculator</h2>
+          <form onSubmit={handleCalc} className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <Input 
+              label="Amount (paise)" 
+              type="number" 
+              value={calcForm.amountPaise} 
+              min="0"
+              onChange={(e) => setCalcForm(p => ({ ...p, amountPaise: e.target.value }))} 
+              required 
+            />
+            <Input 
+              label="GST Rate (%)" 
+              type="number" 
+              value={calcForm.gstRate} 
+              min="0" max="100" step="0.01"
+              onChange={(e) => setCalcForm(p => ({ ...p, gstRate: e.target.value }))} 
+              required 
+            />
+            <Select label="Pricing" value={calcForm.pricingMode} onChange={(e) => setCalcForm(p => ({ ...p, pricingMode: e.target.value }))}>
+              <option value="EXCLUSIVE">Exclusive</option>
+              <option value="INCLUSIVE">Inclusive</option>
+            </Select>
+            <Select label="Supply" value={calcForm.supplyType} onChange={(e) => setCalcForm(p => ({ ...p, supplyType: e.target.value }))}>
+              <option value="INTRA_STATE">Intra-State</option>
+              <option value="INTER_STATE">Inter-State</option>
+            </Select>
+            <div className="sm:col-span-2 pt-2">
+              <Button type="submit" className="w-full sm:w-auto">Calculate</Button>
             </div>
           </form>
+
           {calcResult && !calcResult.error && (
-            <div className="data-table-wrapper" style={{ marginTop: '0.75rem' }}>
-              <table className="data-table">
-                <tbody>
-                  <tr><td>Taxable Amount</td><td>{fmt(calcResult.taxableAmount)}</td></tr>
-                  <tr><td>CGST</td><td>{fmt(calcResult.cgst)}</td></tr>
-                  <tr><td>SGST</td><td>{fmt(calcResult.sgst)}</td></tr>
-                  <tr><td>IGST</td><td>{fmt(calcResult.igst)}</td></tr>
-                  <tr><td><strong>Total GST</strong></td><td><strong>{fmt(calcResult.totalGST)}</strong></td></tr>
-                  <tr><td><strong>Grand Total</strong></td><td><strong>{fmt(calcResult.total)}</strong></td></tr>
-                </tbody>
-              </table>
+            <div className="mt-4 border border-gray-200 rounded-lg overflow-hidden">
+              <Table>
+                <Tbody>
+                  <Tr><Td className="text-gray-600">Taxable Amount</Td><Td className="text-right font-medium">{fmt(calcResult.taxableAmount)}</Td></Tr>
+                  <Tr><Td className="text-gray-600">CGST</Td><Td className="text-right">{fmt(calcResult.cgst)}</Td></Tr>
+                  <Tr><Td className="text-gray-600">SGST</Td><Td className="text-right">{fmt(calcResult.sgst)}</Td></Tr>
+                  <Tr><Td className="text-gray-600">IGST</Td><Td className="text-right">{fmt(calcResult.igst)}</Td></Tr>
+                  <Tr className="bg-gray-50"><Td className="font-semibold text-gray-900">Total GST</Td><Td className="text-right font-semibold">{fmt(calcResult.totalGST)}</Td></Tr>
+                  <Tr className="bg-gray-100"><Td className="font-bold text-gray-900">Grand Total</Td><Td className="text-right font-bold text-gray-900">{fmt(calcResult.total)}</Td></Tr>
+                </Tbody>
+              </Table>
             </div>
           )}
-          {calcResult?.error && <p className="profile-msg error">{calcResult.error}</p>}
-        </fieldset>
+          {calcResult?.error && (
+            <div className="mt-4 bg-red-50 text-red-700 p-3 rounded-md border border-red-200">
+              {calcResult.error}
+            </div>
+          )}
+        </Card>
+      </div>
 
-        {/* Config List */}
-        <h3 style={{ marginBottom: '1rem' }}>Configured Classifications</h3>
-        {configs.length === 0 ? (
-          <div className="empty-state"><p>No tax configurations found.</p></div>
-        ) : (
-          <div className="data-table-wrapper">
-            <table className="data-table">
-              <thead><tr><th>Code</th><th>Type</th><th>Description</th><th>Rate</th><th>Treatment</th><th>Status</th><th>Actions</th></tr></thead>
-              <tbody>
-                {configs.map(c => (
-                  <tr key={c._id} style={!c.isActive ? { opacity: 0.5 } : {}}>
-                    <td>{c.hsnSac}</td>
-                    <td><span className={`type-badge ${c.classificationType.toLowerCase()}`}>{c.classificationType}</span></td>
-                    <td>{c.description || '-'}</td>
-                    <td>{c.gstRate}%</td>
-                    <td>{c.taxTreatment}</td>
-                    <td><span className={`status-badge ${c.isActive ? 'active' : 'inactive'}`}>{c.isActive ? 'Active' : 'Inactive'}</span></td>
-                    <td className="actions-cell">
-                      <button onClick={() => openEditModal(c)} className="action-btn edit">Edit</button>
-                      <button onClick={() => handleDelete(c._id)} className="action-btn delete">Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </main>
+      {/* Config List */}
+      <h2 className="text-lg font-medium text-gray-900 mb-4">Configured Classifications</h2>
+      {configs.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+          <p className="text-gray-500">No tax configurations found.</p>
+        </div>
+      ) : (
+        <Card>
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Code</Th>
+                <Th>Type</Th>
+                <Th>Description</Th>
+                <Th>Rate</Th>
+                <Th>Treatment</Th>
+                <Th>Status</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {configs.map(c => (
+                <Tr key={c._id} className={!c.isActive ? 'opacity-50 grayscale' : ''}>
+                  <Td className="font-medium">{c.hsnSac}</Td>
+                  <Td><Badge status={c.classificationType === 'HSN' ? 'info' : 'purple'}>{c.classificationType}</Badge></Td>
+                  <Td className="text-gray-500">{c.description || '-'}</Td>
+                  <Td className="font-medium">{c.gstRate}%</Td>
+                  <Td>{c.taxTreatment}</Td>
+                  <Td>
+                    <Badge status={c.isActive ? 'success' : 'danger'}>
+                      {c.isActive ? 'Active' : 'Inactive'}
+                    </Badge>
+                  </Td>
+                  <Td>
+                    <div className="flex gap-3">
+                      <button onClick={() => openEditModal(c)} className="text-indigo-600 hover:text-indigo-900 font-medium">Edit</button>
+                      <button onClick={() => handleDelete(c._id)} className="text-red-600 hover:text-red-900 font-medium">Delete</button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </Card>
+      )}
 
       {/* Modal */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>{editingConfig ? 'Edit Tax Config' : 'Add Tax Config'}</h3>
-              <button onClick={closeModal} className="modal-close">&times;</button>
-            </div>
-            {formError && <div className="profile-msg error">{formError}</div>}
-            <form onSubmit={handleSubmit} className="modal-form">
-              <fieldset className="profile-section">
-                <legend>Classification</legend>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>HSN/SAC Code *</label>
-                    <input name="hsnSac" value={formData.hsnSac} onChange={handleChange} required placeholder="e.g. 84713010" />
-                  </div>
-                  <div className="form-group">
-                    <label>Type *</label>
-                    <select name="classificationType" value={formData.classificationType} onChange={handleChange}>
-                      <option value="HSN">HSN (Goods)</option>
-                      <option value="SAC">SAC (Services)</option>
-                    </select>
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Description</label>
-                    <input name="description" value={formData.description} onChange={handleChange} />
-                  </div>
-                </div>
-              </fieldset>
-              <fieldset className="profile-section">
-                <legend>Tax Configuration</legend>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>GST Rate (%) *</label>
-                    <input type="number" name="gstRate" value={formData.gstRate} onChange={handleChange} min="0" max="100" step="0.01" required />
-                  </div>
-                  <div className="form-group">
-                    <label>Tax Treatment</label>
-                    <select name="taxTreatment" value={formData.taxTreatment} onChange={handleChange}>
-                      <option value="TAXABLE">Taxable</option>
-                      <option value="NIL_RATED">Nil Rated</option>
-                      <option value="EXEMPT">Exempt</option>
-                      <option value="NON_GST">Non-GST</option>
-                    </select>
-                  </div>
-                  <div className="form-group">
-                    <label>Effective From</label>
-                    <input type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>Effective To</label>
-                    <input type="date" name="effectiveTo" value={formData.effectiveTo} onChange={handleChange} />
-                  </div>
-                </div>
-              </fieldset>
-              <fieldset className="profile-section">
-                <legend>Additional</legend>
-                <div className="form-grid">
-                  <div className="form-group full-width">
-                    <label>Source Reference</label>
-                    <input name="sourceReference" value={formData.sourceReference} onChange={handleChange} placeholder="e.g. Reference data source" />
-                  </div>
-                  <div className="form-group">
-                    <label className="checkbox-label">
-                      <input type="checkbox" name="isActive" checked={formData.isActive} onChange={handleChange} /> Active
-                    </label>
-                  </div>
-                </div>
-              </fieldset>
-              <div className="modal-actions">
-                <button type="button" onClick={closeModal} className="auth-btn secondary">Cancel</button>
-                <button type="submit" className="auth-btn" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingConfig ? 'Edit Tax Config' : 'Add Tax Config'}
+      >
+        {formError && (
+          <div className="mb-4 bg-red-50 text-red-700 p-3 rounded-md border border-red-200">
+            {formError}
           </div>
-        </div>
-      )}
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Classification</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="HSN/SAC Code *" name="hsnSac" value={formData.hsnSac} onChange={handleChange} required placeholder="e.g. 84713010" />
+              <Select label="Type *" name="classificationType" value={formData.classificationType} onChange={handleChange}>
+                <option value="HSN">HSN (Goods)</option>
+                <option value="SAC">SAC (Services)</option>
+              </Select>
+              <div className="md:col-span-2">
+                <Input label="Description" name="description" value={formData.description} onChange={handleChange} />
+              </div>
+            </div>
+          </fieldset>
+
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Tax Configuration</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="GST Rate (%) *" type="number" name="gstRate" value={formData.gstRate} onChange={handleChange} min="0" max="100" step="0.01" required />
+              <Select label="Tax Treatment" name="taxTreatment" value={formData.taxTreatment} onChange={handleChange}>
+                <option value="TAXABLE">Taxable</option>
+                <option value="NIL_RATED">Nil Rated</option>
+                <option value="EXEMPT">Exempt</option>
+                <option value="NON_GST">Non-GST</option>
+              </Select>
+              <Input label="Effective From" type="date" name="effectiveFrom" value={formData.effectiveFrom} onChange={handleChange} />
+              <Input label="Effective To" type="date" name="effectiveTo" value={formData.effectiveTo} onChange={handleChange} />
+            </div>
+          </fieldset>
+
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Additional</legend>
+            <div className="grid grid-cols-1 gap-4">
+              <Input label="Source Reference" name="sourceReference" value={formData.sourceReference} onChange={handleChange} placeholder="e.g. Reference data source" />
+              <div className="flex items-center mt-2">
+                <input type="checkbox" id="isActive" name="isActive" checked={formData.isActive} onChange={handleChange} className="h-4 w-4 text-indigo-600 focus:ring-indigo-500 border-gray-300 rounded" /> 
+                <label htmlFor="isActive" className="ml-2 block text-sm text-gray-900">Active</label>
+              </div>
+            </div>
+          </fieldset>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" disabled={isSaving}>{isSaving ? 'Saving...' : 'Save'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

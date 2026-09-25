@@ -1,10 +1,15 @@
-import { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
-import { Link, useSearchParams } from 'react-router-dom';
+import React, { useState, useEffect } from 'react';
+import { useSearchParams } from 'react-router-dom';
 import api from '../api/axios';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import Modal from '../components/ui/Modal';
+import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';
+import Spinner from '../components/ui/Spinner';
 
 const CustomersPage = () => {
-  const { user, business, logout } = useAuth();
+ // removed logout, handled by AppLayout Header
   
   const [searchParams, setSearchParams] = useSearchParams();
   const page = parseInt(searchParams.get('page')) || 1;
@@ -18,7 +23,6 @@ const CustomersPage = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   
-  // Local state for debouncing search input
   const [searchInput, setSearchInput] = useState(searchStr);
 
   const [showModal, setShowModal] = useState(false);
@@ -30,7 +34,6 @@ const CustomersPage = () => {
     city: '', state: '', pinCode: '', country: 'India', gstin: '', pan: '', notes: ''
   });
 
-  // Debounce search
   useEffect(() => {
     const timer = setTimeout(() => {
       if (searchInput !== searchStr) {
@@ -38,7 +41,7 @@ const CustomersPage = () => {
       }
     }, 400);
     return () => clearTimeout(timer);
-  }, [searchInput]);
+  }, [searchInput, searchStr]);
 
   useEffect(() => {
     fetchCustomers();
@@ -70,6 +73,7 @@ const CustomersPage = () => {
       setCustomers(res.data.data.customers);
       setPagination(res.data.data.pagination);
     } catch (err) {
+      console.error(err);
       setError('Failed to fetch customers.');
     } finally {
       setLoading(false);
@@ -141,229 +145,215 @@ const CustomersPage = () => {
       await api.delete(`/customers/${id}`);
       setCustomers(prev => prev.filter(c => c._id !== id));
     } catch (err) {
+      console.error(err);
       alert('Failed to delete customer.');
     }
   };
 
-  if (loading) {
-    return <div className="page-loading">Loading customers...</div>;
+  if (loading && customers.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Spinner size="lg" />
+      </div>
+    );
   }
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1><Link to="/dashboard" className="header-link">BillFlow-Pro</Link></h1>
-        <div className="dashboard-user-info">
-          <span>{user?.name} — {business?.name}</span>
-          <button onClick={logout} className="logout-btn">Logout</button>
-        </div>
-      </header>
+    <div>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Customers</h1>
+        <Button onClick={openAddModal}>Add Customer</Button>
+      </div>
 
-      <main className="dashboard-main">
-        <div className="page-header">
-          <h2>Customers</h2>
-          <button onClick={openAddModal} className="auth-btn btn-sm">Add Customer</button>
-        </div>
-
-        <div className="filter-controls" style={{ display: 'flex', gap: '10px', marginBottom: '15px', flexWrap: 'wrap' }}>
-          <input 
-            type="text" 
-            placeholder="Search name, email, phone, GSTIN..." 
-            value={searchInput} 
-            onChange={e => setSearchInput(e.target.value)} 
-            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-          />
-          <select 
-            value={customerType} 
-            onChange={e => updateParams({ customerType: e.target.value, page: 1 })}
-            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-          >
-            <option value="">All Types</option>
-            <option value="Business">Business</option>
-            <option value="Individual">Individual</option>
-          </select>
-          <select 
-            value={sort} 
-            onChange={e => updateParams({ sort: e.target.value, page: 1 })}
-            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-          >
-            <option value="createdAt">Date Added</option>
-            <option value="name">Name</option>
-          </select>
-          <select 
-            value={order} 
-            onChange={e => updateParams({ order: e.target.value, page: 1 })}
-            style={{ padding: '0.5rem', borderRadius: '4px', border: '1px solid #ccc' }}
-          >
-            <option value="desc">Descending</option>
-            <option value="asc">Ascending</option>
-          </select>
-          <button onClick={clearFilters} className="auth-btn btn-sm secondary">Clear Filters</button>
-        </div>
-
-        {error && <div className="profile-msg error">{error}</div>}
-
-        {customers.length === 0 ? (
-          <div className="empty-state">
-            <p>No customers found matching your criteria.</p>
+      <div className="bg-white p-4 rounded-lg shadow-sm border border-gray-200 mb-6">
+        <div className="flex flex-wrap gap-4 items-end">
+          <div className="w-full sm:w-auto flex-1 min-w-[200px]">
+            <Input 
+              type="text" 
+              placeholder="Search name, email, phone, GSTIN..." 
+              value={searchInput} 
+              onChange={e => setSearchInput(e.target.value)} 
+            />
           </div>
-        ) : (
-          <div className="data-table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Name</th>
-                  <th>Type</th>
-                  <th>Contact</th>
-                  <th>GSTIN</th>
-                  <th>City</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {customers.map(c => (
-                  <tr key={c._id}>
-                    <td>{c.name}</td>
-                    <td>{c.customerType}</td>
-                    <td>
-                      <div>{c.phone}</div>
-                      <div className="text-sm text-gray">{c.email}</div>
-                    </td>
-                    <td>{c.gstin || '-'}</td>
-                    <td>{c.city || '-'}</td>
-                    <td className="actions-cell">
-                      <button onClick={() => openEditModal(c)} className="action-btn edit">Edit</button>
-                      <button onClick={() => handleDelete(c._id)} className="action-btn delete">Delete</button>
-                    </td>
-                  </tr>
-                ))}
-              </tbody>
-            </table>
+          <div className="w-full sm:w-auto">
+            <Select 
+              value={customerType} 
+              onChange={e => updateParams({ customerType: e.target.value, page: 1 })}
+            >
+              <option value="">All Types</option>
+              <option value="Business">Business</option>
+              <option value="Individual">Individual</option>
+            </Select>
           </div>
-        )}
-
-        {pagination && pagination.totalPages > 1 && (
-          <div className="pagination" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1rem' }}>
-            <span style={{ fontSize: '0.875rem', color: '#666' }}>
-              Showing page {pagination.page} of {pagination.totalPages}
-            </span>
-            <div style={{ display: 'flex', gap: '5px' }}>
-              <button 
-                disabled={!pagination.hasPrevious} 
-                onClick={() => updateParams({ page: pagination.page - 1 })}
-                className="auth-btn btn-sm secondary"
-              >
-                Previous
-              </button>
-              <button 
-                disabled={!pagination.hasNext} 
-                onClick={() => updateParams({ page: pagination.page + 1 })}
-                className="auth-btn btn-sm secondary"
-              >
-                Next
-              </button>
-            </div>
+          <div className="w-full sm:w-auto">
+            <Select 
+              value={sort} 
+              onChange={e => updateParams({ sort: e.target.value, page: 1 })}
+            >
+              <option value="createdAt">Date Added</option>
+              <option value="name">Name</option>
+            </Select>
           </div>
-        )}
-      </main>
+          <div className="w-full sm:w-auto">
+            <Select 
+              value={order} 
+              onChange={e => updateParams({ order: e.target.value, page: 1 })}
+            >
+              <option value="desc">Descending</option>
+              <option value="asc">Ascending</option>
+            </Select>
+          </div>
+          <div className="w-full sm:w-auto">
+            <Button variant="secondary" onClick={clearFilters} className="w-full sm:w-auto">
+              Clear Filters
+            </Button>
+          </div>
+        </div>
+      </div>
 
-      {/* Modal Overlay */}
-      {showModal && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>{editingCustomer ? 'Edit Customer' : 'Add Customer'}</h3>
-              <button onClick={closeModal} className="modal-close">&times;</button>
-            </div>
-            
-            {formError && <div className="profile-msg error">{formError}</div>}
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+          {error}
+        </div>
+      )}
 
-            <form onSubmit={handleSubmit} className="modal-form">
-              <fieldset className="profile-section">
-                <legend>Customer Details</legend>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Name / Business Name *</label>
-                    <input name="name" value={formData.name} onChange={handleChange} required />
-                  </div>
-                  <div className="form-group">
-                    <label>Customer Type</label>
-                    <select name="customerType" value={formData.customerType} onChange={handleChange}>
-                      <option value="Business">Business</option>
-                      <option value="Individual">Individual</option>
-                    </select>
-                  </div>
-                </div>
-              </fieldset>
+      {customers.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+          <p className="text-gray-500 text-lg">No customers found matching your criteria.</p>
+        </div>
+      ) : (
+        <div className="bg-white shadow-sm border border-gray-200 rounded-lg overflow-hidden">
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Name</Th>
+                <Th>Type</Th>
+                <Th>Contact</Th>
+                <Th>GSTIN</Th>
+                <Th>City</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {customers.map(c => (
+                <Tr key={c._id}>
+                  <Td className="font-medium">{c.name}</Td>
+                  <Td>{c.customerType}</Td>
+                  <Td>
+                    <div>{c.phone}</div>
+                    <div className="text-sm text-gray-500">{c.email}</div>
+                  </Td>
+                  <Td>{c.gstin || '-'}</Td>
+                  <Td>{c.city || '-'}</Td>
+                  <Td>
+                    <div className="flex gap-3">
+                      <button onClick={() => openEditModal(c)} className="text-indigo-600 hover:text-indigo-900 font-medium">Edit</button>
+                      <button onClick={() => handleDelete(c._id)} className="text-red-600 hover:text-red-900 font-medium">Delete</button>
+                    </div>
+                  </Td>
+                </Tr>
+              ))}
+            </Tbody>
+          </Table>
+        </div>
+      )}
 
-              <fieldset className="profile-section">
-                <legend>Contact</legend>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>Phone</label>
-                    <input name="phone" value={formData.phone} onChange={handleChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>Email</label>
-                    <input type="email" name="email" value={formData.email} onChange={handleChange} />
-                  </div>
-                </div>
-              </fieldset>
-
-              <fieldset className="profile-section">
-                <legend>Address</legend>
-                <div className="form-grid">
-                  <div className="form-group full-width">
-                    <label>Billing Address</label>
-                    <input name="billingAddress" value={formData.billingAddress} onChange={handleChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>City</label>
-                    <input name="city" value={formData.city} onChange={handleChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>State</label>
-                    <input name="state" value={formData.state} onChange={handleChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>PIN Code</label>
-                    <input name="pinCode" value={formData.pinCode} onChange={handleChange} />
-                  </div>
-                  <div className="form-group">
-                    <label>Country</label>
-                    <input name="country" value={formData.country} onChange={handleChange} />
-                  </div>
-                </div>
-              </fieldset>
-
-              <fieldset className="profile-section">
-                <legend>Tax Details & Additional</legend>
-                <div className="form-grid">
-                  <div className="form-group">
-                    <label>GSTIN</label>
-                    <input name="gstin" value={formData.gstin} onChange={handleChange} placeholder="22AAAAA0000A1Z5" />
-                  </div>
-                  <div className="form-group">
-                    <label>PAN</label>
-                    <input name="pan" value={formData.pan} onChange={handleChange} placeholder="AAAAA0000A" />
-                  </div>
-                  <div className="form-group full-width">
-                    <label>Notes</label>
-                    <textarea name="notes" rows="2" value={formData.notes} onChange={handleChange} />
-                  </div>
-                </div>
-              </fieldset>
-
-              <div className="modal-actions">
-                <button type="button" onClick={closeModal} className="auth-btn secondary">Cancel</button>
-                <button type="submit" className="auth-btn" disabled={isSaving}>
-                  {isSaving ? 'Saving...' : 'Save'}
-                </button>
-              </div>
-            </form>
+      {pagination && pagination.totalPages > 1 && (
+        <div className="flex justify-between items-center mt-6">
+          <span className="text-sm text-gray-600">
+            Showing page {pagination.page} of {pagination.totalPages}
+          </span>
+          <div className="flex gap-2">
+            <Button 
+              variant="secondary"
+              size="sm"
+              disabled={!pagination.hasPrevious} 
+              onClick={() => updateParams({ page: pagination.page - 1 })}
+            >
+              Previous
+            </Button>
+            <Button 
+              variant="secondary"
+              size="sm"
+              disabled={!pagination.hasNext} 
+              onClick={() => updateParams({ page: pagination.page + 1 })}
+            >
+              Next
+            </Button>
           </div>
         </div>
       )}
+
+      <Modal
+        isOpen={showModal}
+        onClose={closeModal}
+        title={editingCustomer ? 'Edit Customer' : 'Add Customer'}
+      >
+        {formError && (
+          <div className="mb-4 bg-red-50 text-red-700 p-3 rounded-md border border-red-200">
+            {formError}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-6">
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Customer Details</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Name / Business Name *" name="name" value={formData.name} onChange={handleChange} required />
+              <Select label="Customer Type" name="customerType" value={formData.customerType} onChange={handleChange}>
+                <option value="Business">Business</option>
+                <option value="Individual">Individual</option>
+              </Select>
+            </div>
+          </fieldset>
+
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Contact</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="Phone" name="phone" value={formData.phone} onChange={handleChange} />
+              <Input label="Email" type="email" name="email" value={formData.email} onChange={handleChange} />
+            </div>
+          </fieldset>
+
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Address</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="md:col-span-2">
+                <Input label="Billing Address" name="billingAddress" value={formData.billingAddress} onChange={handleChange} />
+              </div>
+              <Input label="City" name="city" value={formData.city} onChange={handleChange} />
+              <Input label="State" name="state" value={formData.state} onChange={handleChange} />
+              <Input label="PIN Code" name="pinCode" value={formData.pinCode} onChange={handleChange} />
+              <Input label="Country" name="country" value={formData.country} onChange={handleChange} />
+            </div>
+          </fieldset>
+
+          <fieldset className="border border-gray-200 rounded-md p-4 bg-gray-50">
+            <legend className="text-sm font-semibold text-gray-700 px-2">Tax Details & Additional</legend>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <Input label="GSTIN" name="gstin" value={formData.gstin} onChange={handleChange} placeholder="22AAAAA0000A1Z5" />
+              <Input label="PAN" name="pan" value={formData.pan} onChange={handleChange} placeholder="AAAAA0000A" />
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Notes</label>
+                <textarea 
+                  name="notes" 
+                  rows="2" 
+                  value={formData.notes} 
+                  onChange={handleChange}
+                  className="block w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
+                />
+              </div>
+            </div>
+          </fieldset>
+
+          <div className="flex justify-end gap-3 pt-2">
+            <Button type="button" variant="secondary" onClick={closeModal}>Cancel</Button>
+            <Button type="submit" disabled={isSaving}>
+              {isSaving ? 'Saving...' : 'Save'}
+            </Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };

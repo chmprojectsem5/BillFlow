@@ -1,5 +1,9 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, useLocation } from 'react-router-dom';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Select from '../components/ui/Select';
+import { Card } from '../components/ui/Card';
 
 const InvoiceCreatePage = () => {
   const [customers, setCustomers] = useState([]);
@@ -190,8 +194,6 @@ const InvoiceCreatePage = () => {
   };
 
   const finalizeInvoice = async () => {
-    // Basic implementation: Create Draft, then immediately finalize.
-    // In a real app you might have a draft list, click into it, then hit finalize.
     setLoading(true);
     setError(null);
     try {
@@ -212,7 +214,6 @@ const InvoiceCreatePage = () => {
       const draftUrl = isEditing ? `/api/v1/invoices/${editInvoiceId}` : '/api/v1/invoices';
       const draftMethod = isEditing ? 'PATCH' : 'POST';
 
-      // 1. Create or update draft
       const draftRes = await fetch(draftUrl, {
         method: draftMethod,
         headers: {
@@ -226,7 +227,6 @@ const InvoiceCreatePage = () => {
 
       const draftId = draftData.data.invoice._id;
 
-      // 2. Finalize
       const finalizeRes = await fetch(`/api/v1/invoices/${draftId}/finalize`, {
         method: 'POST',
         headers: {
@@ -245,155 +245,170 @@ const InvoiceCreatePage = () => {
   };
 
   return (
-    <div className="p-6">
-      <h1 className="text-2xl font-bold mb-4">{isEditing ? 'Edit Draft Invoice' : 'Create Invoice'}</h1>
-      
-      {error && <div className="bg-red-100 text-red-700 p-3 mb-4 rounded">{error}</div>}
-
-      <div className="grid grid-cols-2 gap-4 mb-6">
-        <div>
-          <label className="block mb-1 font-semibold">Customer</label>
-          <select 
-            className="w-full border p-2 rounded"
-            value={selectedCustomer} 
-            onChange={e => setSelectedCustomer(e.target.value)}
-          >
-            <option value="">-- Select Customer --</option>
-            {customers.map(c => (
-              <option key={c._id} value={c._id}>{c.name}</option>
-            ))}
-          </select>
-        </div>
-        <div>
-          <label className="block mb-1 font-semibold">Date</label>
-          <input 
-            type="date" 
-            className="w-full border p-2 rounded"
-            value={date} 
-            onChange={e => setDate(e.target.value)} 
-          />
-        </div>
+    <div className="pb-12 max-w-5xl mx-auto">
+      <div className="mb-6 flex justify-between items-center">
+        <h1 className="text-2xl font-bold text-gray-900">{isEditing ? 'Edit Draft Invoice' : 'Create Invoice'}</h1>
       </div>
+      
+      {error && <div className="bg-red-50 text-red-700 p-4 mb-6 rounded-md border border-red-200">{error}</div>}
 
-      <div className="mb-6">
-        <h2 className="text-xl font-semibold mb-2">Line Items</h2>
-        <div className="bg-gray-50 p-4 rounded border">
+      <Card className="p-6 mb-8">
+        <h2 className="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Invoice Details</h2>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <div>
+            <Select 
+              label="Customer"
+              value={selectedCustomer} 
+              onChange={e => setSelectedCustomer(e.target.value)}
+            >
+              <option value="">-- Select Customer --</option>
+              {customers.map(c => (
+                <option key={c._id} value={c._id}>{c.name}</option>
+              ))}
+            </Select>
+          </div>
+          <div>
+            <Input 
+              label="Date"
+              type="date" 
+              value={date} 
+              onChange={e => setDate(e.target.value)} 
+            />
+          </div>
+        </div>
+      </Card>
+
+      <Card className="p-6 mb-8 overflow-visible">
+        <h2 className="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Line Items</h2>
+        <div className="space-y-4">
           {lineItems.map((li, index) => (
-            <div key={index} className="flex gap-2 mb-2 items-center">
-              <select 
-                className="border p-2 rounded flex-1"
-                value={li.itemId}
-                onChange={e => handleLineChange(index, 'itemId', e.target.value)}
-              >
-                <option value="">-- Select Item --</option>
-                {items.map(item => (
-                  <option key={item._id} value={item._id}>{item.name}</option>
-                ))}
-              </select>
+            <div key={index} className="flex flex-wrap md:flex-nowrap gap-3 items-start bg-gray-50 p-4 rounded-md border border-gray-200">
+              <div className="w-full md:flex-1 min-w-[200px]">
+                <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
+                <select 
+                  className="block w-full pl-3 pr-10 py-2 text-base border-gray-300 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm rounded-md"
+                  value={li.itemId}
+                  onChange={e => handleLineChange(index, 'itemId', e.target.value)}
+                >
+                  <option value="">-- Select Item --</option>
+                  {items.map(item => (
+                    <option key={item._id} value={item._id}>{item.name}</option>
+                  ))}
+                </select>
+              </div>
               
-              <input 
-                type="number" 
-                placeholder="Qty"
-                className="border p-2 rounded w-20"
-                value={li.quantity}
-                min="0.001"
-                step="0.001"
-                onChange={e => handleLineChange(index, 'quantity', e.target.value)}
-              />
+              <div className="w-full sm:w-auto min-w-[80px]">
+                <Input 
+                  label="Qty"
+                  type="number" 
+                  value={li.quantity}
+                  min="0.001"
+                  step="0.001"
+                  onChange={e => handleLineChange(index, 'quantity', e.target.value)}
+                />
+              </div>
 
-              <input 
-                type="number" 
-                placeholder="Override Price (Paise)"
-                className="border p-2 rounded w-48"
-                value={li.unitPriceOverride}
-                onChange={e => handleLineChange(index, 'unitPriceOverride', e.target.value)}
-              />
+              <div className="w-full sm:w-auto min-w-[150px]">
+                <Input 
+                  label="Override Price (Paise)"
+                  type="number" 
+                  value={li.unitPriceOverride}
+                  onChange={e => handleLineChange(index, 'unitPriceOverride', e.target.value)}
+                />
+              </div>
               
-              <input 
-                type="number" 
-                placeholder="Discount (Paise)"
-                className="border p-2 rounded w-40"
-                value={li.discount}
-                onChange={e => handleLineChange(index, 'discount', e.target.value)}
-              />
+              <div className="w-full sm:w-auto min-w-[130px]">
+                <Input 
+                  label="Discount (Paise)"
+                  type="number" 
+                  value={li.discount}
+                  onChange={e => handleLineChange(index, 'discount', e.target.value)}
+                />
+              </div>
 
-              <button 
-                className="bg-red-500 text-white px-3 py-2 rounded"
-                onClick={() => removeLineItem(index)}
-              >
-                X
-              </button>
+              <div className="w-full sm:w-auto flex items-end pt-6">
+                <Button 
+                  variant="danger"
+                  onClick={() => removeLineItem(index)}
+                  className="w-full sm:w-auto"
+                >
+                  Remove
+                </Button>
+              </div>
             </div>
           ))}
-          <button 
-            className="mt-2 bg-blue-100 text-blue-700 px-4 py-2 rounded font-semibold"
-            onClick={addLineItem}
-          >
-            + Add Line Item
-          </button>
+          <div className="pt-2">
+            <Button 
+              variant="secondary"
+              onClick={addLineItem}
+            >
+              + Add Line Item
+            </Button>
+          </div>
         </div>
-      </div>
+      </Card>
 
       {/* Live Server Preview */}
       {preview && (
-        <div className="mb-6 bg-white p-4 rounded shadow border">
-          <h2 className="text-lg font-bold mb-4">Calculations (Server Authoritative)</h2>
-          <div className="space-y-2 text-sm">
-            <div className="flex justify-between">
+        <Card className="p-6 mb-8">
+          <h2 className="text-lg font-bold text-gray-900 mb-4 border-b pb-2">Calculations (Preview)</h2>
+          <div className="space-y-3 text-sm max-w-md ml-auto">
+            <div className="flex justify-between text-gray-600">
               <span>Subtotal:</span>
-              <span>₹{(preview.summary.subTotal / 100).toFixed(2)}</span>
+              <span className="font-medium text-gray-900">₹{(preview.summary.subTotal / 100).toFixed(2)}</span>
             </div>
-            <div className="flex justify-between text-red-600">
-              <span>Discount:</span>
-              <span>-₹{(preview.summary.discountTotal / 100).toFixed(2)}</span>
-            </div>
-            <div className="flex justify-between font-semibold">
+            {preview.summary.discountTotal > 0 && (
+              <div className="flex justify-between text-red-600">
+                <span>Discount:</span>
+                <span>-₹{(preview.summary.discountTotal / 100).toFixed(2)}</span>
+              </div>
+            )}
+            <div className="flex justify-between font-semibold text-gray-900 pt-2 border-t border-gray-100">
               <span>Taxable Value:</span>
               <span>₹{(preview.summary.taxableTotal / 100).toFixed(2)}</span>
             </div>
             
             {preview.summary.cgstTotal > 0 && (
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-gray-500">
                 <span>CGST:</span>
                 <span>₹{(preview.summary.cgstTotal / 100).toFixed(2)}</span>
               </div>
             )}
             {preview.summary.sgstTotal > 0 && (
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-gray-500">
                 <span>SGST:</span>
                 <span>₹{(preview.summary.sgstTotal / 100).toFixed(2)}</span>
               </div>
             )}
             {preview.summary.igstTotal > 0 && (
-              <div className="flex justify-between text-gray-600">
+              <div className="flex justify-between text-gray-500">
                 <span>IGST:</span>
                 <span>₹{(preview.summary.igstTotal / 100).toFixed(2)}</span>
               </div>
             )}
             
-            <div className="flex justify-between font-bold text-lg pt-2 border-t mt-2">
+            <div className="flex justify-between font-bold text-lg pt-4 border-t border-gray-200 mt-2 text-indigo-900">
               <span>Grand Total:</span>
               <span>₹{(preview.summary.grandTotal / 100).toFixed(2)}</span>
             </div>
           </div>
-        </div>
+        </Card>
       )}
 
-      <div className="flex gap-4">
-        <button 
-          className="bg-gray-200 text-gray-800 px-6 py-2 rounded font-semibold disabled:opacity-50"
+      <div className="flex flex-wrap gap-4 justify-end">
+        <Button 
+          variant="secondary"
           onClick={saveDraft}
           disabled={loading || !selectedCustomer}
         >
           Save Draft
-        </button>
-        <button 
-          className="bg-green-600 text-white px-6 py-2 rounded font-semibold disabled:opacity-50"
+        </Button>
+        <Button 
           onClick={finalizeInvoice}
           disabled={loading || !selectedCustomer}
         >
           Finalize Invoice
-        </button>
+        </Button>
       </div>
 
     </div>

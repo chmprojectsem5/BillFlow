@@ -6,8 +6,8 @@ import InvoiceMeta from '../components/invoice/InvoiceMeta';
 import BillToSection from '../components/invoice/BillToSection';
 import InvoiceItemsTable from '../components/invoice/InvoiceItemsTable';
 import InvoiceTotals from '../components/invoice/InvoiceTotals';
-
 import PaymentSection from '../components/invoice/PaymentSection';
+import Button from '../components/ui/Button';
 
 const InvoiceViewPage = () => {
   const { id } = useParams();
@@ -76,7 +76,6 @@ const InvoiceViewPage = () => {
         throw new Error('Failed to generate PDF');
       }
       
-      // Get filename from Content-Disposition header if possible
       let filename = `Invoice-${invoice.invoiceNumber}.pdf`;
       const disposition = response.headers.get('content-disposition');
       if (disposition && disposition.indexOf('filename=') !== -1) {
@@ -105,73 +104,69 @@ const InvoiceViewPage = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 py-8 print:bg-white print:py-0">
-      <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
-        
-        {/* Action Bar - Hidden during print */}
-        <div className="mb-6 flex justify-between items-center print:hidden bg-white p-4 rounded-lg shadow-sm">
-          <button 
-            onClick={() => navigate(-1)} 
-            className="text-gray-600 hover:text-gray-900 font-medium text-sm transition-colors"
+    <div className="pb-12 print:bg-white print:py-0 max-w-5xl mx-auto">
+      {/* Action Bar - Hidden during print */}
+      <div className="mb-6 flex justify-between items-center print:hidden bg-white p-4 rounded-lg shadow-sm border border-gray-200">
+        <button 
+          onClick={() => navigate(-1)} 
+          className="text-gray-600 hover:text-gray-900 font-medium text-sm transition-colors"
+        >
+          &larr; Back
+        </button>
+        <div className="flex flex-wrap gap-3">
+          {invoice.status === 'Draft' && (
+            <Button 
+              variant="secondary"
+              onClick={() => navigate(`/invoices/new?edit=${invoice._id}`)}
+            >
+              Edit Draft
+            </Button>
+          )}
+          <Button 
+            variant="success"
+            onClick={handleDownloadPdf}
+            disabled={downloadingPdf}
           >
-            &larr; Back
-          </button>
-          <div className="space-x-3">
-            {invoice.status === 'Draft' && (
-              <button 
-                onClick={() => navigate(`/invoices/new?edit=${invoice._id}`)}
-                className="inline-flex items-center px-4 py-2 border border-gray-300 shadow-sm text-sm font-medium rounded-md text-gray-700 bg-white hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-              >
-                Edit Draft
-              </button>
-            )}
-            <button 
-              onClick={handleDownloadPdf}
-              disabled={downloadingPdf}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
-            >
-              {downloadingPdf ? 'Generating...' : 'Download PDF'}
-            </button>
-            <button 
-              onClick={handlePrint}
-              className="inline-flex items-center px-4 py-2 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500"
-            >
-              Print
-            </button>
-          </div>
+            {downloadingPdf ? 'Generating...' : 'Download PDF'}
+          </Button>
+          <Button 
+            onClick={handlePrint}
+          >
+            Print
+          </Button>
         </div>
+      </div>
 
-        {/* Invoice Document Paper */}
-        <div className="bg-white shadow-lg rounded-lg overflow-hidden print:shadow-none print:rounded-none">
-          <div className="p-8 sm:p-12">
-            
-            <InvoiceHeader businessSnapshot={invoice.businessSnapshot} />
-            <InvoiceMeta invoice={invoice} />
-            <BillToSection customerSnapshot={invoice.customerSnapshot} />
-            <InvoiceItemsTable items={invoice.items} />
-            <InvoiceTotals summary={invoice.summary} />
-            
-            {/* Notes and Terms */}
-            {(invoice.notes || invoice.terms) && (
-              <div className="mt-8 border-t border-gray-200 pt-8 grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-gray-600">
-                {invoice.notes && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2 uppercase tracking-wider text-xs">Notes</h4>
-                    <p className="whitespace-pre-wrap">{invoice.notes}</p>
-                  </div>
-                )}
-                {invoice.terms && (
-                  <div>
-                    <h4 className="font-semibold text-gray-900 mb-2 uppercase tracking-wider text-xs">Terms & Conditions</h4>
-                    <p className="whitespace-pre-wrap">{invoice.terms}</p>
-                  </div>
-                )}
-              </div>
-            )}
-            
-            {/* Payment Section */}
-            <PaymentSection invoice={invoice} onPaymentSuccess={fetchInvoice} />
-          </div>
+      {/* Invoice Document Paper */}
+      <div className="bg-white shadow-lg rounded-lg overflow-hidden border border-gray-200 print:shadow-none print:rounded-none print:border-none">
+        <div className="p-8 sm:p-12">
+          
+          <InvoiceHeader businessSnapshot={invoice.businessSnapshot} />
+          <InvoiceMeta invoice={invoice} />
+          <BillToSection customerSnapshot={invoice.customerSnapshot} />
+          <InvoiceItemsTable items={invoice.items} />
+          <InvoiceTotals summary={invoice.summary} />
+          
+          {/* Notes and Terms */}
+          {(invoice.notes || invoice.terms) && (
+            <div className="mt-8 border-t border-gray-200 pt-8 grid grid-cols-1 md:grid-cols-2 gap-8 text-sm text-gray-600">
+              {invoice.notes && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 uppercase tracking-wider text-xs">Notes</h4>
+                  <p className="whitespace-pre-wrap">{invoice.notes}</p>
+                </div>
+              )}
+              {invoice.terms && (
+                <div>
+                  <h4 className="font-semibold text-gray-900 mb-2 uppercase tracking-wider text-xs">Terms & Conditions</h4>
+                  <p className="whitespace-pre-wrap">{invoice.terms}</p>
+                </div>
+              )}
+            </div>
+          )}
+          
+          {/* Payment Section */}
+          <PaymentSection invoice={invoice} onPaymentSuccess={fetchInvoice} />
         </div>
       </div>
     </div>

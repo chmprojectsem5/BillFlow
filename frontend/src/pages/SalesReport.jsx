@@ -1,23 +1,19 @@
 import React, { useState, useEffect } from 'react';
-import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import reportApi from '../services/reportApi';
-import { formatCurrency, formatDate } from '../utils/formatters';
+import { formatCurrency } from '../utils/formatters';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import { Card } from '../components/ui/Card';
 
 const SalesReport = () => {
-  const { user, business, logout } = useAuth();
-  
-  // Default date range: current month
   const getInitialDates = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
-    
-    // Format YYYY-MM-DD
     const formatYMD = (d) => {
       const pad = (n) => n.toString().padStart(2, '0');
       return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}`;
     };
-    
     return {
       startDate: formatYMD(firstDay),
       endDate: formatYMD(today)
@@ -54,99 +50,85 @@ const SalesReport = () => {
   };
 
   return (
-    <div className="min-h-screen bg-gray-100 pb-12">
-      <header className="bg-white shadow">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-4 flex justify-between items-center">
-          <h1 className="text-2xl font-bold text-gray-900">Sales Report</h1>
-          <div className="flex items-center space-x-4">
-            <span className="text-sm text-gray-600">{user?.name} — {business?.name}</span>
-            <button onClick={logout} className="text-sm font-medium text-red-600 hover:text-red-800">Logout</button>
+    <div className="pb-12">
+      <div className="mb-6">
+        <h1 className="text-2xl font-bold text-gray-900">Sales Report</h1>
+      </div>
+
+      <div className="mb-8">
+        <Link to="/reports" className="text-indigo-600 hover:text-indigo-900 font-medium">&larr; Back to Reports</Link>
+      </div>
+
+      <Card className="p-6 mb-8">
+        <form onSubmit={handleGenerate} className="flex flex-wrap items-end gap-4">
+          <div className="flex-1 min-w-[200px]">
+            <Input
+              label="Start Date"
+              type="date"
+              required
+              value={dates.startDate}
+              onChange={(e) => setDates({ ...dates, startDate: e.target.value })}
+            />
           </div>
-        </div>
-      </header>
-
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <nav className="flex flex-wrap gap-4 mb-8 bg-white p-4 rounded-lg shadow items-center">
-          <Link to="/reports" className="text-gray-600 hover:text-gray-900 font-medium">&larr; Back to Reports</Link>
-        </nav>
-
-        <div className="bg-white rounded-lg shadow p-6 mb-8">
-          <form onSubmit={handleGenerate} className="flex flex-wrap items-end gap-4">
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Start Date</label>
-              <input
-                type="date"
-                required
-                value={dates.startDate}
-                onChange={(e) => setDates({ ...dates, startDate: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">End Date</label>
-              <input
-                type="date"
-                required
-                value={dates.endDate}
-                onChange={(e) => setDates({ ...dates, endDate: e.target.value })}
-                className="mt-1 block w-full border border-gray-300 rounded-md shadow-sm py-2 px-3 focus:outline-none focus:ring-indigo-500 focus:border-indigo-500 sm:text-sm"
-              />
-            </div>
-            <div>
-              <button
-                type="submit"
-                disabled={loading}
-                className="inline-flex justify-center py-2 px-4 border border-transparent shadow-sm text-sm font-medium rounded-md text-white bg-indigo-600 hover:bg-indigo-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-indigo-500 disabled:opacity-50"
-              >
-                {loading ? 'Generating...' : 'Generate Report'}
-              </button>
-            </div>
-          </form>
-          {error && (
-            <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-md text-sm">
-              {error}
-            </div>
-          )}
-        </div>
-
-        {data && !loading && (
-          <div className="bg-white shadow overflow-hidden sm:rounded-lg">
-            <div className="px-4 py-5 border-b border-gray-200 sm:px-6">
-              <h3 className="text-lg leading-6 font-medium text-gray-900">
-                Sales Overview ({dates.startDate} to {dates.endDate})
-              </h3>
-            </div>
-            <div className="px-4 py-5 sm:p-0">
-              <dl className="sm:divide-y sm:divide-gray-200">
-                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                  <dt className="text-sm font-medium text-gray-500">Invoices Generated</dt>
-                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2 font-bold">{data.invoiceCount}</dd>
-                </div>
-                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-gray-50">
-                  <dt className="text-sm font-medium text-gray-500">Total Taxable Value</dt>
-                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{formatCurrency(data.taxableTotal)}</dd>
-                </div>
-                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                  <dt className="text-sm font-medium text-gray-500">Total Tax Added</dt>
-                  <dd className="mt-1 text-sm text-gray-900 sm:mt-0 sm:col-span-2">{formatCurrency(data.taxTotal)}</dd>
-                </div>
-                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-indigo-50">
-                  <dt className="text-sm font-medium text-indigo-800">Total Sales (Gross)</dt>
-                  <dd className="mt-1 text-lg font-bold text-indigo-900 sm:mt-0 sm:col-span-2">{formatCurrency(data.salesTotal)}</dd>
-                </div>
-                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6">
-                  <dt className="text-sm font-medium text-green-700">Amount Collected</dt>
-                  <dd className="mt-1 text-sm font-medium text-green-900 sm:mt-0 sm:col-span-2">{formatCurrency(data.paidAgainstIncludedInvoices)}</dd>
-                </div>
-                <div className="py-4 sm:py-5 sm:grid sm:grid-cols-3 sm:gap-4 sm:px-6 bg-red-50">
-                  <dt className="text-sm font-medium text-red-700">Outstanding Balance</dt>
-                  <dd className="mt-1 text-sm font-medium text-red-900 sm:mt-0 sm:col-span-2">{formatCurrency(data.balanceDueOnIncludedInvoices)}</dd>
-                </div>
-              </dl>
-            </div>
+          <div className="flex-1 min-w-[200px]">
+            <Input
+              label="End Date"
+              type="date"
+              required
+              value={dates.endDate}
+              onChange={(e) => setDates({ ...dates, endDate: e.target.value })}
+            />
+          </div>
+          <div className="w-full sm:w-auto mt-2 sm:mt-0">
+            <Button type="submit" disabled={loading} className="w-full">
+              {loading ? 'Generating...' : 'Generate Report'}
+            </Button>
+          </div>
+        </form>
+        {error && (
+          <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-md text-sm">
+            {error}
           </div>
         )}
-      </main>
+      </Card>
+
+      {data && !loading && (
+        <Card>
+          <div className="px-6 py-4 border-b border-gray-200">
+            <h3 className="text-lg font-medium text-gray-900">
+              Sales Overview ({dates.startDate} to {dates.endDate})
+            </h3>
+          </div>
+          <div className="px-6 py-2">
+            <dl className="divide-y divide-gray-200">
+              <div className="py-4 grid grid-cols-3 gap-4">
+                <dt className="text-sm font-medium text-gray-500 col-span-1">Invoices Generated</dt>
+                <dd className="text-sm text-gray-900 col-span-2 font-bold">{data.invoiceCount}</dd>
+              </div>
+              <div className="py-4 grid grid-cols-3 gap-4 bg-gray-50 -mx-6 px-6">
+                <dt className="text-sm font-medium text-gray-500 col-span-1">Total Taxable Value</dt>
+                <dd className="text-sm text-gray-900 col-span-2">{formatCurrency(data.taxableTotal)}</dd>
+              </div>
+              <div className="py-4 grid grid-cols-3 gap-4">
+                <dt className="text-sm font-medium text-gray-500 col-span-1">Total Tax Added</dt>
+                <dd className="text-sm text-gray-900 col-span-2">{formatCurrency(data.taxTotal)}</dd>
+              </div>
+              <div className="py-4 grid grid-cols-3 gap-4 bg-indigo-50 -mx-6 px-6">
+                <dt className="text-sm font-bold text-indigo-800 col-span-1">Total Sales (Gross)</dt>
+                <dd className="text-lg font-bold text-indigo-900 col-span-2">{formatCurrency(data.salesTotal)}</dd>
+              </div>
+              <div className="py-4 grid grid-cols-3 gap-4">
+                <dt className="text-sm font-medium text-green-700 col-span-1">Amount Collected</dt>
+                <dd className="text-sm font-medium text-green-900 col-span-2">{formatCurrency(data.paidAgainstIncludedInvoices)}</dd>
+              </div>
+              <div className="py-4 grid grid-cols-3 gap-4 bg-red-50 -mx-6 px-6">
+                <dt className="text-sm font-medium text-red-700 col-span-1">Outstanding Balance</dt>
+                <dd className="text-sm font-medium text-red-900 col-span-2">{formatCurrency(data.balanceDueOnIncludedInvoices)}</dd>
+              </div>
+            </dl>
+          </div>
+        </Card>
+      )}
     </div>
   );
 };

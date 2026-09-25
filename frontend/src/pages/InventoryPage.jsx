@@ -1,10 +1,17 @@
-import { useState, useEffect } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useAuth } from '../context/AuthContext';
 import { Link } from 'react-router-dom';
 import api from '../api/axios';
+import Button from '../components/ui/Button';
+import Input from '../components/ui/Input';
+import Modal from '../components/ui/Modal';
+import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';
+import Badge from '../components/ui/Badge';
+import Spinner from '../components/ui/Spinner';
+import { Card } from '../components/ui/Card';
 
 const InventoryPage = () => {
-  const { user, business, logout } = useAuth();
+
   const [inventory, setInventory] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -39,6 +46,7 @@ const InventoryPage = () => {
       setInventory(res.data.data.inventory);
       setError('');
     } catch (err) {
+      console.error(err);
       setError('Failed to load inventory.');
     } finally {
       setLoading(false);
@@ -91,162 +99,212 @@ const InventoryPage = () => {
   };
 
   const statusBadge = (status) => {
-    const colors = { IN_STOCK: '#16a34a', LOW_STOCK: '#ea580c', OUT_OF_STOCK: '#dc2626' };
-    const labels = { IN_STOCK: 'In Stock', LOW_STOCK: 'Low Stock', OUT_OF_STOCK: 'Out of Stock' };
-    return (
-      <span style={{ 
-        background: colors[status] + '20', color: colors[status],
-        padding: '2px 10px', borderRadius: '12px', fontWeight: 600, fontSize: '0.8rem'
-      }}>
-        {labels[status]}
-      </span>
-    );
+    switch (status) {
+      case 'IN_STOCK': return <Badge status="success">In Stock</Badge>;
+      case 'LOW_STOCK': return <Badge status="warning">Low Stock</Badge>;
+      case 'OUT_OF_STOCK': return <Badge status="danger">Out of Stock</Badge>;
+      default: return <Badge>{status}</Badge>;
+    }
   };
 
   const formatDate = (d) => new Date(d).toLocaleString();
 
-  if (loading) return <div className="page-loading">Loading inventory...</div>;
+  if (loading && inventory.length === 0) {
+    return (
+      <div className="flex items-center justify-center min-h-[50vh]">
+        <Spinner size="lg" />
+      </div>
+    );
+  }
 
   return (
-    <div className="dashboard-container">
-      <header className="dashboard-header">
-        <h1><Link to="/dashboard" className="header-link">BillFlow-Pro</Link></h1>
-        <div className="dashboard-user-info">
-          <span>{user?.name} — {business?.name}</span>
-          <button onClick={logout} className="logout-btn">Logout</button>
+    <div className="pb-12">
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <h1 className="text-2xl font-bold text-gray-900">Inventory</h1>
+      </div>
+
+      {error && (
+        <div className="bg-red-50 text-red-700 p-4 rounded-md mb-6 border border-red-200">
+          {error}
         </div>
-      </header>
+      )}
 
-      <main className="dashboard-main">
-        <div className="page-header">
-          <h2>Inventory</h2>
+      {inventory.length === 0 ? (
+        <div className="text-center py-12 bg-white rounded-lg shadow-sm border border-gray-200">
+          <p className="text-gray-500 mb-4 text-lg">No products found.</p>
+          <p className="text-gray-500">Add products in the <Link to="/items" className="text-indigo-600 hover:text-indigo-800">Items</Link> page first.</p>
         </div>
-
-        {error && <div className="profile-msg error">{error}</div>}
-
-        {inventory.length === 0 ? (
-          <div className="empty-state">
-            <p>No products found. Add products in the <Link to="/items">Items</Link> page first.</p>
-          </div>
-        ) : (
-          <div className="data-table-wrapper">
-            <table className="data-table">
-              <thead>
-                <tr>
-                  <th>Product</th>
-                  <th>SKU</th>
-                  <th>Unit</th>
-                  <th>Stock</th>
-                  <th>Threshold</th>
-                  <th>Status</th>
-                  <th>Actions</th>
-                </tr>
-              </thead>
-              <tbody>
-                {inventory.map(item => (
-                  <>
-                    <tr key={item._id}>
-                      <td>{item.name}</td>
-                      <td>{item.sku || '-'}</td>
-                      <td>{item.unit || '-'}</td>
-                      <td style={{ fontWeight: 700 }}>{item.currentStock}</td>
-                      <td>{item.lowStockThreshold || '-'}</td>
-                      <td>{statusBadge(item.stockStatus)}</td>
-                      <td className="actions-cell">
-                        <button onClick={() => { setStockInItem(item); setShowStockIn(true); setStockInError(''); }} className="action-btn edit">Stock In</button>
-                        <button onClick={() => { setAdjustItem(item); setAdjustStock(String(item.currentStock)); setShowAdjust(true); setAdjustError(''); }} className="action-btn edit">Adjust</button>
-                        <button onClick={() => fetchMovements(item._id)} className="action-btn">{selectedItem === item._id ? 'Hide' : 'History'}</button>
-                      </td>
-                    </tr>
-                    {selectedItem === item._id && (
-                      <tr key={`${item._id}-history`}>
-                        <td colSpan="7" style={{ padding: 0 }}>
-                          <div style={{ padding: '0.5rem 1rem', background: '#f9fafb', maxHeight: '300px', overflow: 'auto' }}>
-                            {movementsLoading ? <p>Loading...</p> : movements.length === 0 ? <p style={{ color: '#6b7280' }}>No movements recorded.</p> : (
-                              <table style={{ width: '100%', fontSize: '0.85rem' }}>
-                                <thead><tr>
-                                  <th>Date</th><th>Type</th><th>Qty</th><th>Before</th><th>After</th><th>Reference</th><th>Note</th>
-                                </tr></thead>
-                                <tbody>
-                                  {movements.map(m => (
-                                    <tr key={m._id}>
-                                      <td>{formatDate(m.createdAt)}</td>
-                                      <td><span style={{ fontWeight: 600, color: m.movementType === 'IN' ? '#16a34a' : m.movementType === 'OUT' ? '#dc2626' : '#2563eb' }}>{m.movementType}</span></td>
-                                      <td>{m.quantity}</td>
-                                      <td>{m.balanceBefore}</td>
-                                      <td>{m.balanceAfter}</td>
-                                      <td>{m.referenceType}{m.referenceId ? ` #${String(m.referenceId).slice(-6)}` : ''}</td>
-                                      <td>{m.note || '-'}</td>
-                                    </tr>
-                                  ))}
-                                </tbody>
-                              </table>
-                            )}
-                          </div>
-                        </td>
-                      </tr>
-                    )}
-                  </>
-                ))}
-              </tbody>
-            </table>
-          </div>
-        )}
-      </main>
+      ) : (
+        <Card>
+          <Table>
+            <Thead>
+              <Tr>
+                <Th>Product</Th>
+                <Th>SKU</Th>
+                <Th>Unit</Th>
+                <Th>Stock</Th>
+                <Th>Threshold</Th>
+                <Th>Status</Th>
+                <Th>Actions</Th>
+              </Tr>
+            </Thead>
+            <Tbody>
+              {inventory.map(item => (
+                <React.Fragment key={item._id}>
+                  <Tr>
+                    <Td className="font-medium">{item.name}</Td>
+                    <Td className="text-gray-500">{item.sku || '-'}</Td>
+                    <Td className="text-gray-500">{item.unit || '-'}</Td>
+                    <Td className="font-bold">{item.currentStock}</Td>
+                    <Td className="text-gray-500">{item.lowStockThreshold || '-'}</Td>
+                    <Td>{statusBadge(item.stockStatus)}</Td>
+                    <Td>
+                      <div className="flex gap-3">
+                        <button 
+                          onClick={() => { setStockInItem(item); setShowStockIn(true); setStockInError(''); }} 
+                          className="text-green-600 hover:text-green-900 font-medium"
+                        >
+                          Stock In
+                        </button>
+                        <button 
+                          onClick={() => { setAdjustItem(item); setAdjustStock(String(item.currentStock)); setShowAdjust(true); setAdjustError(''); }} 
+                          className="text-indigo-600 hover:text-indigo-900 font-medium"
+                        >
+                          Adjust
+                        </button>
+                        <button 
+                          onClick={() => fetchMovements(item._id)} 
+                          className="text-gray-600 hover:text-gray-900 font-medium"
+                        >
+                          {selectedItem === item._id ? 'Hide' : 'History'}
+                        </button>
+                      </div>
+                    </Td>
+                  </Tr>
+                  {selectedItem === item._id && (
+                    <Tr key={`${item._id}-history`} className="bg-gray-50">
+                      <Td colSpan="7" className="p-0 border-0">
+                        <div className="p-4 max-h-[300px] overflow-y-auto border-b border-gray-200">
+                          <h4 className="text-sm font-semibold text-gray-700 mb-3">Movement History</h4>
+                          {movementsLoading ? (
+                            <p className="text-sm text-gray-500">Loading...</p>
+                          ) : movements.length === 0 ? (
+                            <p className="text-sm text-gray-500">No movements recorded.</p>
+                          ) : (
+                            <table className="min-w-full divide-y divide-gray-200 text-sm border border-gray-200 rounded-md overflow-hidden bg-white">
+                              <thead className="bg-gray-100">
+                                <tr>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Date</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Type</th>
+                                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Qty</th>
+                                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">Before</th>
+                                  <th className="px-3 py-2 text-right text-xs font-medium text-gray-500">After</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Reference</th>
+                                  <th className="px-3 py-2 text-left text-xs font-medium text-gray-500">Note</th>
+                                </tr>
+                              </thead>
+                              <tbody className="divide-y divide-gray-200">
+                                {movements.map(m => (
+                                  <tr key={m._id}>
+                                    <td className="px-3 py-2 text-gray-500">{formatDate(m.createdAt)}</td>
+                                    <td className="px-3 py-2">
+                                      <span className={`font-semibold ${
+                                        m.movementType === 'IN' ? 'text-green-600' : 
+                                        m.movementType === 'OUT' ? 'text-red-600' : 'text-blue-600'
+                                      }`}>
+                                        {m.movementType}
+                                      </span>
+                                    </td>
+                                    <td className="px-3 py-2 text-right">{m.quantity}</td>
+                                    <td className="px-3 py-2 text-right text-gray-500">{m.balanceBefore}</td>
+                                    <td className="px-3 py-2 text-right font-medium">{m.balanceAfter}</td>
+                                    <td className="px-3 py-2 text-gray-500">
+                                      {m.referenceType}{m.referenceId ? ` #${String(m.referenceId).slice(-6)}` : ''}
+                                    </td>
+                                    <td className="px-3 py-2 text-gray-500">{m.note || '-'}</td>
+                                  </tr>
+                                ))}
+                              </tbody>
+                            </table>
+                          )}
+                        </div>
+                      </Td>
+                    </Tr>
+                  )}
+                </React.Fragment>
+              ))}
+            </Tbody>
+          </Table>
+        </Card>
+      )}
 
       {/* Stock In Modal */}
-      {showStockIn && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Stock In — {stockInItem?.name}</h3>
-              <button onClick={() => setShowStockIn(false)} className="modal-close">&times;</button>
-            </div>
-            {stockInError && <div className="profile-msg error">{stockInError}</div>}
-            <form onSubmit={handleStockIn} className="modal-form">
-              <div className="form-group">
-                <label>Quantity *</label>
-                <input type="number" step="0.01" min="0.01" value={stockInQty} onChange={e => setStockInQty(e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label>Note</label>
-                <input value={stockInNote} onChange={e => setStockInNote(e.target.value)} placeholder="Optional note" />
-              </div>
-              <div className="modal-actions">
-                <button type="button" onClick={() => setShowStockIn(false)} className="auth-btn secondary">Cancel</button>
-                <button type="submit" className="auth-btn" disabled={stockInSaving}>{stockInSaving ? 'Saving...' : 'Add Stock'}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showStockIn}
+        onClose={() => setShowStockIn(false)}
+        title={`Stock In — ${stockInItem?.name}`}
+      >
+        {stockInError && (
+          <div className="mb-4 bg-red-50 text-red-700 p-3 rounded-md border border-red-200">
+            {stockInError}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleStockIn} className="space-y-4">
+          <Input 
+            label="Quantity *" 
+            type="number" 
+            step="0.01" 
+            min="0.01" 
+            value={stockInQty} 
+            onChange={e => setStockInQty(e.target.value)} 
+            required 
+          />
+          <Input 
+            label="Note" 
+            value={stockInNote} 
+            onChange={e => setStockInNote(e.target.value)} 
+            placeholder="Optional note" 
+          />
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setShowStockIn(false)}>Cancel</Button>
+            <Button type="submit" disabled={stockInSaving}>{stockInSaving ? 'Saving...' : 'Add Stock'}</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Adjust Modal */}
-      {showAdjust && (
-        <div className="modal-overlay">
-          <div className="modal-content">
-            <div className="modal-header">
-              <h3>Adjust Stock — {adjustItem?.name}</h3>
-              <button onClick={() => setShowAdjust(false)} className="modal-close">&times;</button>
-            </div>
-            {adjustError && <div className="profile-msg error">{adjustError}</div>}
-            <form onSubmit={handleAdjust} className="modal-form">
-              <div className="form-group">
-                <label>New Stock (physical count) *</label>
-                <input type="number" step="0.01" min="0" value={adjustStock} onChange={e => setAdjustStock(e.target.value)} required />
-              </div>
-              <div className="form-group">
-                <label>Note</label>
-                <input value={adjustNote} onChange={e => setAdjustNote(e.target.value)} placeholder="Reason for adjustment" />
-              </div>
-              <div className="modal-actions">
-                <button type="button" onClick={() => setShowAdjust(false)} className="auth-btn secondary">Cancel</button>
-                <button type="submit" className="auth-btn" disabled={adjustSaving}>{adjustSaving ? 'Saving...' : 'Save Adjustment'}</button>
-              </div>
-            </form>
+      <Modal
+        isOpen={showAdjust}
+        onClose={() => setShowAdjust(false)}
+        title={`Adjust Stock — ${adjustItem?.name}`}
+      >
+        {adjustError && (
+          <div className="mb-4 bg-red-50 text-red-700 p-3 rounded-md border border-red-200">
+            {adjustError}
           </div>
-        </div>
-      )}
+        )}
+        <form onSubmit={handleAdjust} className="space-y-4">
+          <Input 
+            label="New Stock (physical count) *" 
+            type="number" 
+            step="0.01" 
+            min="0" 
+            value={adjustStock} 
+            onChange={e => setAdjustStock(e.target.value)} 
+            required 
+          />
+          <Input 
+            label="Note" 
+            value={adjustNote} 
+            onChange={e => setAdjustNote(e.target.value)} 
+            placeholder="Reason for adjustment" 
+          />
+          <div className="flex justify-end gap-3 pt-4">
+            <Button type="button" variant="secondary" onClick={() => setShowAdjust(false)}>Cancel</Button>
+            <Button type="submit" disabled={adjustSaving}>{adjustSaving ? 'Saving...' : 'Save Adjustment'}</Button>
+          </div>
+        </form>
+      </Modal>
     </div>
   );
 };
