@@ -13,7 +13,24 @@ const app = express();
 
 // 1. GLOBAL MIDDLEWARES
 // Security HTTP headers
-app.use(helmet());
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'"],
+      imgSrc: ["'self'", 'data:'],
+      connectSrc: ["'self'"]
+    }
+  },
+  hsts: {
+    maxAge: 31536000,
+    includeSubDomains: true,
+    preload: true
+  },
+  frameguard: { action: 'deny' },
+  noSniff: true
+}));
 
 // Development logging
 if (env.nodeEnv === 'development') {
@@ -36,7 +53,7 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 
 // CORS setup
 const corsOptions = {
-  origin: env.nodeEnv === 'development' ? ['http://localhost:5173', 'http://127.0.0.1:5173'] : false, // False in prod until strictly configured
+  origin: env.corsOrigins,
   credentials: true
 };
 app.use(cors(corsOptions));

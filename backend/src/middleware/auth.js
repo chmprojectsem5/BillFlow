@@ -22,7 +22,10 @@ const protect = async (req, res, next) => {
     // 2. Verify token
     let decoded;
     try {
-      decoded = jwt.verify(token, env.jwtSecret);
+      decoded = jwt.verify(token, env.jwtSecret, {
+        algorithms: ['HS256'],
+        issuer: 'billflow-pro'
+      });
     } catch (err) {
       if (err.name === 'TokenExpiredError') {
         return next(new AppError('Your session has expired. Please log in again.', 401));

@@ -242,7 +242,9 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
         body: JSON.stringify({ date: new Date().toISOString(), customerId: custId, items })
       });
-      return (await res.json()).data.invoice;
+      const json = await res.json();
+      if (!json.data) console.log(json);
+      return json.data.invoice;
     };
 
     const finalizeInvoice = async (id) => {
@@ -255,20 +257,20 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
 
     await t.test('21. Draft invoice does not modify stock', async () => {
       const before = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
-      await createInvoice([{ itemId: prodA._id, quantity: 2, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
+      await createInvoice([{ itemId: prodA._id, quantity: 2, discount: 0 }]);
       const after = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
       assert.strictEqual(before.data.item.currentStock, after.data.item.currentStock);
     });
 
     await t.test('22. Finalized Product invoice deducts stock', async () => {
-      const inv = await createInvoice([{ itemId: prodA._id, quantity: 3, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
+      const inv = await createInvoice([{ itemId: prodA._id, quantity: 3, discount: 0 }]);
       await finalizeInvoice(inv._id);
       const after = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
       assert.strictEqual(after.data.item.currentStock, 7); // 10 - 3
     });
 
     await t.test('23. Finalized Service invoice does not modify stock', async () => {
-      const inv = await createInvoice([{ itemId: svc._id, quantity: 5, unitPrice: 200000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
+      const inv = await createInvoice([{ itemId: svc._id, quantity: 5, discount: 0 }]);
       await finalizeInvoice(inv._id);
       // Service has no stock — this should not throw
     });
@@ -276,8 +278,8 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
     await t.test('24. Mixed Product+Service invoice deducts only Products', async () => {
       // prodA stock is now 7
       const inv = await createInvoice([
-        { itemId: prodA._id, quantity: 2, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 },
-        { itemId: svc._id, quantity: 3, unitPrice: 200000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }
+        { itemId: prodA._id, quantity: 2, discount: 0 },
+        { itemId: svc._id, quantity: 3, discount: 0 }
       ]);
       await finalizeInvoice(inv._id);
       const after = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
@@ -285,7 +287,7 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
     });
 
     await t.test('25. Repeated finalization does not deduct stock twice', async () => {
-      const inv = await createInvoice([{ itemId: prodA._id, quantity: 1, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
+      const inv = await createInvoice([{ itemId: prodA._id, quantity: 1, discount: 0 }]);
       await finalizeInvoice(inv._id);
       // Stock is now 4
       const mid = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
@@ -307,8 +309,8 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
         body: JSON.stringify({ newStock: 10 })
       });
       const inv = await createInvoice([
-        { itemId: prodA._id, quantity: 2, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 },
-        { itemId: prodA._id, quantity: 3, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }
+        { itemId: prodA._id, quantity: 2, discount: 0 },
+        { itemId: prodA._id, quantity: 3, discount: 0 }
       ]);
       await finalizeInvoice(inv._id);
       const after = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
@@ -325,9 +327,9 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
         body: JSON.stringify({ newStock: 10 })
       });
       // Create 3 invoices each needing 7 units of prodA
-      const inv1 = await createInvoice([{ itemId: prodA._id, quantity: 7, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
-      const inv2 = await createInvoice([{ itemId: prodA._id, quantity: 7, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
-      const inv3 = await createInvoice([{ itemId: prodA._id, quantity: 7, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
+      const inv1 = await createInvoice([{ itemId: prodA._id, quantity: 7, discount: 0 }]);
+      const inv2 = await createInvoice([{ itemId: prodA._id, quantity: 7, discount: 0 }]);
+      const inv3 = await createInvoice([{ itemId: prodA._id, quantity: 7, discount: 0 }]);
 
       const results = await Promise.all([
         finalizeInvoice(inv1._id),
@@ -352,8 +354,8 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
       // prodA has 3 stock, prodB has 3 stock
       // Invoice: prodA=2, prodB=5 → prodB insufficient → everything rolls back
       const inv = await createInvoice([
-        { itemId: prodA._id, quantity: 2, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 },
-        { itemId: prodB._id, quantity: 5, unitPrice: 50000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }
+        { itemId: prodA._id, quantity: 2, discount: 0 },
+        { itemId: prodB._id, quantity: 5, discount: 0 }
       ]);
       const result = await finalizeInvoice(inv._id);
       assert.notStrictEqual(result.status, 200);
@@ -445,7 +447,7 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
         body: JSON.stringify({ newStock: 50 })
       });
-      const inv = await createInvoice([{ itemId: prodA._id, quantity: 1, unitPrice: 100000, pricingMode: 'EXCLUSIVE', gstRate: 18, discount: 0 }]);
+      const inv = await createInvoice([{ itemId: prodA._id, quantity: 1, discount: 0 }]);
       const beforeFin = await (await fetch(`${BASE}/invoices/${inv._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
       
       await finalizeInvoice(inv._id);
@@ -468,3 +470,4 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
     await mongoose.connection.close();
   }
 });
+

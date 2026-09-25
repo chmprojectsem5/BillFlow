@@ -27,11 +27,18 @@ const updateTaxConfigSchema = z.object({
 }).strict();
 
 const calculateTaxSchema = z.object({
-  amountPaise: z.number().int('Amount must be an integer (paise)').min(0, 'Amount cannot be negative'),
+  amountPaise: z.number().int('Amount must be an integer (paise)').min(0, 'Amount cannot be negative').max(9999999999, 'Amount too large'),
   gstRate: z.number().min(0).max(100),
   pricingMode: z.enum(['EXCLUSIVE', 'INCLUSIVE']),
   supplyType: z.enum(['INTRA_STATE', 'INTER_STATE']),
   taxTreatment: z.enum(['TAXABLE', 'NIL_RATED', 'EXEMPT', 'NON_GST']).optional()
 }).strict();
 
-module.exports = { createTaxConfigSchema, updateTaxConfigSchema, calculateTaxSchema };
+const lookupQuerySchema = z.object({
+  code: z.string().max(20, 'Code too long').optional(),
+  description: z.string().max(100, 'Description too long').optional()
+}).refine(data => data.code || data.description, {
+  message: "Provide either code or description query parameter"
+});
+
+module.exports = { createTaxConfigSchema, updateTaxConfigSchema, calculateTaxSchema, lookupQuerySchema };

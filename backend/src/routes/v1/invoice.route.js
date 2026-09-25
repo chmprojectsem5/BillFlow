@@ -2,6 +2,7 @@ const express = require('express');
 const { protect } = require('../../middleware/auth');
 const invoiceController = require('../../controllers/invoice.controller');
 const validateRequest = require('../../middleware/validateRequest');
+const validateObjectId = require('../../middleware/validateObjectId');
 const { createDraftInvoiceSchema, updateDraftInvoiceSchema, calculateInvoiceSchema, invoiceQuerySchema } = require('../../validators/invoice.validator');
 
 const router = express.Router();
@@ -10,18 +11,19 @@ const router = express.Router();
 router.use(protect);
 
 router.post('/calculate', validateRequest(calculateInvoiceSchema), invoiceController.calculatePreview);
-router.get('/:id/pdf', invoiceController.downloadPdf);
-router.post('/:id/finalize', invoiceController.finalize);
+router.get('/:id/pdf', validateObjectId('id'), invoiceController.downloadPdf);
+router.post('/:id/finalize', validateObjectId('id'), invoiceController.finalize);
 
 router.route('/')
   .get(validateRequest(invoiceQuerySchema, 'query'), invoiceController.getInvoices)
   .post(validateRequest(createDraftInvoiceSchema), invoiceController.createDraft);
 
 router.route('/:id')
+  .all(validateObjectId('id'))
   .get(invoiceController.getInvoiceById)
   .patch(validateRequest(updateDraftInvoiceSchema), invoiceController.updateDraft);
 
 // Payment routes for a specific invoice
-router.use('/:invoiceId/payments', require('./payment.route'));
+router.use('/:invoiceId/payments', validateObjectId('invoiceId'), require('./payment.route'));
 
 module.exports = router;

@@ -6,7 +6,7 @@ const createPaymentSchema = z.object({
   method: z.enum(['Cash', 'Bank Transfer', 'UPI', 'Card', 'Cheque']),
   referenceNumber: z.string().max(100, 'Reference number too long').optional(),
   notes: z.string().max(500, 'Notes too long').optional()
-});
+}).strict();
 
 module.exports = {
   createPaymentSchema

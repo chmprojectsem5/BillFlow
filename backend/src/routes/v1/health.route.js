@@ -15,8 +15,7 @@ router.get('/', (req, res) => {
     success: true,
     message: 'BillFlow-Pro API is running',
     timestamp: new Date().toISOString(),
-    database: dbStatusText,
-    uptime: process.uptime()
+    database: dbStatusText
   });
 });
 

@@ -98,7 +98,7 @@ const generateToken = (user) => {
   return jwt.sign(
     { userId: user._id, businessId: user.businessId },
     env.jwtSecret,
-    { expiresIn: '7d' }
+    { expiresIn: '7d', issuer: 'billflow-pro' }
   );
 };
 

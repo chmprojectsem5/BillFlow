@@ -63,6 +63,8 @@ const getCustomerById = async (businessId, customerId) => {
  * Create a new customer for the authenticated business.
  */
 const createCustomer = async (businessId, data) => {
+  delete data.businessId;
+  delete data._id;
   const customer = await Customer.create({
     ...data,
     businessId // Override any client-provided businessId

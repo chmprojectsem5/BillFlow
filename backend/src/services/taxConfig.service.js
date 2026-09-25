@@ -23,6 +23,8 @@ const getTaxConfigById = async (businessId, configId) => {
  * Create a new tax configuration.
  */
 const createTaxConfig = async (businessId, data) => {
+  delete data.businessId;
+  delete data._id;
   const config = await TaxConfig.create({
     ...data,
     businessId
@@ -66,9 +68,10 @@ const deleteTaxConfig = async (businessId, configId) => {
  * Lookup tax configurations by HSN/SAC code (prefix match).
  */
 const lookupByCode = async (businessId, code) => {
+  const escapedCode = code.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   return await TaxConfig.find({
     businessId,
-    hsnSac: { $regex: `^${code}`, $options: 'i' },
+    hsnSac: { $regex: `^${escapedCode}`, $options: 'i' },
     isActive: true
   }).sort({ hsnSac: 1 }).limit(20);
 };
@@ -77,9 +80,10 @@ const lookupByCode = async (businessId, code) => {
  * Lookup tax configurations by description (partial match).
  */
 const lookupByDescription = async (businessId, description) => {
+  const escapedDescription = description.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
   return await TaxConfig.find({
     businessId,
-    description: { $regex: description, $options: 'i' },
+    description: { $regex: escapedDescription, $options: 'i' },
     isActive: true
   }).sort({ hsnSac: 1 }).limit(20);
 };

@@ -82,9 +82,6 @@ const createInvoice = async (token, customerId, itemId, quantity = 1) => {
       items: [{
         itemId,
         quantity,
-        unitPrice: 100000,
-        pricingMode: 'EXCLUSIVE',
-        gstRate: 18,
         discount: 0
       }]
     })
@@ -135,9 +132,6 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
         items: [{
           itemId: item1,
           quantity: 1,
-          unitPrice: 100000,
-          pricingMode: 'EXCLUSIVE',
-          gstRate: 18,
           discount: 0
         }]
       })
@@ -319,3 +313,4 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     assert.strictEqual(res.status, 404); // Should not find invoice
   });
 });
+

@@ -60,6 +60,13 @@ const updateDraft = async (req, res, next) => {
     delete validatedData.businessId;
     delete validatedData.invoiceNumber;
     delete validatedData.status;
+    delete validatedData.paymentStatus;
+    delete validatedData.summary;
+    delete validatedData.paidAmount;
+    delete validatedData.balanceDue;
+    delete validatedData._id;
+    delete validatedData.createdAt;
+    delete validatedData.updatedAt;
 
     const invoice = await invoiceService.updateDraftInvoice(businessId, invoiceId, validatedData);
     

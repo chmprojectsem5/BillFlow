@@ -46,8 +46,8 @@ test('API and Error Handling Foundation', async (t) => {
     const malformedData = await malformedRes.json();
     assert.strictEqual(malformedData.success, false, 'Malformed JSON must report success: false');
     
-    // Express body-parser assigns status 400 to the error object which our centralized handler passes through
-    assert.strictEqual(malformedData.status, 400, 'Error status property should correctly map to 400 from body-parser');
+    // Express body-parser assigns status 400 to the error object which our centralized handler passes through, now mapped to AppError
+    assert.strictEqual(malformedData.status, 'fail', 'Error status property should correctly map to fail from body-parser');
     assert.match(malformedData.message, /JSON/i, 'Error message must reflect a JSON parsing failure');
 
   } finally {

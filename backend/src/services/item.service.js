@@ -65,6 +65,9 @@ const getItemById = async (businessId, itemId) => {
  * Create a new item for the authenticated business.
  */
 const createItem = async (businessId, data) => {
+  delete data.businessId;
+  delete data._id;
+  
   // Enforce Service rules before creation
   if (data.type === 'Service') {
     data.currentStock = null;

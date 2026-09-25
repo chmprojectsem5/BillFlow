@@ -3,10 +3,10 @@ const { z } = require('zod');
 // Schema for an item in the invoice payload
 const invoiceItemSchema = z.object({
   itemId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Item ID'),
-  quantity: z.number().min(0.001, 'Quantity must be greater than 0'),
-  discount: z.number().int('Discount must be an integer (paise)').min(0, 'Discount cannot be negative').default(0),
-  unitPriceOverride: z.number().int('unitPriceOverride must be an integer (paise)').min(0, 'unitPriceOverride cannot be negative').optional()
-});
+  quantity: z.number().min(0.001, 'Quantity must be greater than 0').max(999999, 'Quantity too large'),
+  discount: z.number().int('Discount must be an integer (paise)').min(0, 'Discount cannot be negative').max(99999999, 'Discount too large').default(0),
+  unitPriceOverride: z.number().int('unitPriceOverride must be an integer (paise)').min(0, 'unitPriceOverride cannot be negative').max(99999999, 'unitPriceOverride too large').optional()
+}).strict();
 
 // Schema for Draft Invoice Creation
 const createDraftInvoiceSchema = z.object({
@@ -16,15 +16,15 @@ const createDraftInvoiceSchema = z.object({
   items: z.array(invoiceItemSchema).min(1, 'At least one item is required'),
   notes: z.string().max(1000).optional(),
   terms: z.string().max(1000).optional()
-});
+}).strict();
 
 // Schema for Draft Invoice Update (same as create, but optional fields where it makes sense, though typically it's a full replace)
-const updateDraftInvoiceSchema = createDraftInvoiceSchema.partial();
+const updateDraftInvoiceSchema = createDraftInvoiceSchema.partial().strict();
 
 const calculateInvoiceSchema = z.object({
   customerId: z.string().regex(/^[0-9a-fA-F]{24}$/, 'Invalid Customer ID').optional(), // Sometimes frontend hasn't picked customer yet
   items: z.array(invoiceItemSchema)
-});
+}).strict();
 
 // Schema for GET (List) query parameters
 const invoiceQuerySchema = z.object({
