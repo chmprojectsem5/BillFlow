@@ -4,6 +4,7 @@ import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
 import Select from '../components/ui/Select';
 import { Card } from '../components/ui/Card';
+import api from '../api/axios';
 
 const InvoiceCreatePage = () => {
   const [customers, setCustomers] = useState([]);
@@ -38,11 +39,9 @@ const InvoiceCreatePage = () => {
   const fetchInvoiceToEdit = async (id) => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/v1/invoices/${id}`, {
-        headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-      });
-      const data = await res.json();
-      if (res.ok) {
+      const res = await api.get(`/invoices/${id}`);
+      const data = res.data;
+      if (data) {
         const inv = data.data.invoice;
         if (inv.status !== 'Draft') {
           setError('Cannot edit a finalized invoice.');
@@ -67,7 +66,7 @@ const InvoiceCreatePage = () => {
         setError(data.message);
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     }
     setLoading(false);
   };
@@ -78,19 +77,15 @@ const InvoiceCreatePage = () => {
   }, []);
 
   const fetchCustomers = async () => {
-    const res = await fetch('/api/v1/customers', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
-    const data = await res.json();
-    if (res.ok) setCustomers(data.data.customers);
+    const res = await api.get('/customers');
+    const data = res.data;
+    if (data) setCustomers(data.data.customers);
   };
 
   const fetchItems = async () => {
-    const res = await fetch('/api/v1/items', {
-      headers: { Authorization: `Bearer ${localStorage.getItem('token')}` }
-    });
-    const data = await res.json();
-    if (res.ok) setItems(data.data.items);
+    const res = await api.get('/items');
+    const data = res.data;
+    if (data) setItems(data.data.items);
   };
 
   // Trigger calculation when relevant fields change
@@ -115,23 +110,14 @@ const InvoiceCreatePage = () => {
         }))
       };
 
-      const res = await fetch('/api/v1/invoices/calculate', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(payload)
-      });
-      
-      const data = await res.json();
-      if (res.ok) {
+      const res = await api.post('/invoices/calculate', payload);
+      const data = res.data;
+      if (data) {
         setPreview(data.data.preview);
         setError(null);
-      } else {
-        setError(data.message);
       }
     } catch (err) {
+      setError(err.response?.data?.message || err.message);
       console.error(err);
     }
   };
@@ -168,27 +154,22 @@ const InvoiceCreatePage = () => {
         }))
       };
 
-      const url = isEditing ? `/api/v1/invoices/${editInvoiceId}` : '/api/v1/invoices';
-      const method = isEditing ? 'PATCH' : 'POST';
-
-      const res = await fetch(url, {
-        method,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(payload)
-      });
+      const url = isEditing ? `/invoices/${editInvoiceId}` : '/invoices';
       
-      const data = await res.json();
-      if (res.ok) {
+      let res;
+      if (isEditing) {
+        res = await api.patch(url, payload);
+      } else {
+        res = await api.post(url, payload);
+      }
+      
+      const data = res.data;
+      if (data) {
         alert('Draft saved! ID: ' + data.data.invoice._id);
         navigate('/invoices/' + data.data.invoice._id);
-      } else {
-        setError(data.message);
       }
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     }
     setLoading(false);
   };
@@ -211,35 +192,25 @@ const InvoiceCreatePage = () => {
         }))
       };
 
-      const draftUrl = isEditing ? `/api/v1/invoices/${editInvoiceId}` : '/api/v1/invoices';
-      const draftMethod = isEditing ? 'PATCH' : 'POST';
-
-      const draftRes = await fetch(draftUrl, {
-        method: draftMethod,
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        },
-        body: JSON.stringify(payload)
-      });
-      const draftData = await draftRes.json();
-      if (!draftRes.ok) throw new Error(draftData.message);
-
+      const draftUrl = isEditing ? `/invoices/${editInvoiceId}` : '/invoices';
+      
+      let draftRes;
+      if (isEditing) {
+        draftRes = await api.patch(draftUrl, payload);
+      } else {
+        draftRes = await api.post(draftUrl, payload);
+      }
+      
+      const draftData = draftRes.data;
       const draftId = draftData.data.invoice._id;
 
-      const finalizeRes = await fetch(`/api/v1/invoices/${draftId}/finalize`, {
-        method: 'POST',
-        headers: {
-          Authorization: `Bearer ${localStorage.getItem('token')}`
-        }
-      });
-      const finalizeData = await finalizeRes.json();
-      if (!finalizeRes.ok) throw new Error(finalizeData.message);
+      const finalizeRes = await api.post(`/invoices/${draftId}/finalize`);
+      const finalizeData = finalizeRes.data;
 
       alert('Invoice Finalized! Number: ' + finalizeData.data.invoice.invoiceNumber);
       navigate('/invoices/' + finalizeData.data.invoice._id);
     } catch (err) {
-      setError(err.message);
+      setError(err.response?.data?.message || err.message);
     }
     setLoading(false);
   };

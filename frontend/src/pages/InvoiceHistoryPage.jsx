@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate, Link, useSearchParams } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import { formatCurrency, formatDate } from '../utils/formatters';
 import Button from '../components/ui/Button';
 import Input from '../components/ui/Input';
@@ -59,8 +59,6 @@ const InvoiceHistoryPage = () => {
     try {
       setLoading(true);
       setError('');
-      const token = localStorage.getItem('token');
-      
       const queryParams = new URLSearchParams({ page, limit: pagination.limit || 20 });
       if (searchStr) queryParams.set('search', searchStr);
       if (statusFilter) queryParams.set('status', statusFilter);
@@ -69,9 +67,7 @@ const InvoiceHistoryPage = () => {
       if (sort) queryParams.set('sort', sort);
       if (order) queryParams.set('order', order);
 
-      const res = await axios.get(`http://localhost:5000/api/v1/invoices?${queryParams.toString()}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get(`/invoices?${queryParams.toString()}`);
       
       setInvoices(res.data.data.invoices);
       setPagination(res.data.data.pagination);
@@ -90,17 +86,20 @@ const InvoiceHistoryPage = () => {
   const handleDownloadPdf = async (invoice) => {
     try {
       setDownloadingId(invoice._id);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/v1/invoices/${invoice._id}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await api.get(`/invoices/${invoice._id}/pdf`, {
+        responseType: 'blob'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+      const blob = response.data;
+
+      if (blob.type === 'application/json') {
+        const text = await blob.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.error || 'Failed to generate PDF');
       }
       
       let filename = `Invoice-${invoice.invoiceNumber}.pdf`;
-      const disposition = response.headers.get('content-disposition');
+      const disposition = response.headers['content-disposition'];
       if (disposition && disposition.indexOf('filename=') !== -1) {
         const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
         const matches = filenameRegex.exec(disposition);
@@ -108,8 +107,6 @@ const InvoiceHistoryPage = () => {
           filename = matches[1].replace(/['"]/g, '');
         }
       }
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;

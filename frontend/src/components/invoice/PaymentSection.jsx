@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import axios from 'axios';
+import api from '../../api/axios';
 import { formatCurrency } from '../../utils/formatters';
 
 const PaymentSection = ({ invoice, onPaymentSuccess }) => {
@@ -18,10 +18,7 @@ const PaymentSection = ({ invoice, onPaymentSuccess }) => {
 
   const fetchPayments = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/v1/invoices/${invoice._id}/payments`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get(`/invoices/${invoice._id}/payments`);
       setPayments(res.data.data.payments);
     } catch (err) {
       console.error('Failed to load payments', err);
@@ -41,17 +38,11 @@ const PaymentSection = ({ invoice, onPaymentSuccess }) => {
     setSubmitting(true);
     setError('');
 
-    const token = localStorage.getItem('token');
     const amountPaise = Math.round(parseFloat(amount) * 100);
-
-    // Generate unique idempotency key for this submission attempt
-    // If the network request fails and the user retries, we DO NOT regenerate this if we want true retry idempotency
-    // But since this is a simple React form, if they click submit again, we will generate a new one unless we store it in state.
-    // Let's generate it once when the form is opened/mounted.
     const idempotencyKey = crypto.randomUUID();
 
     try {
-      await axios.post(`http://localhost:5000/api/v1/invoices/${invoice._id}/payments`, {
+      await api.post(`/invoices/${invoice._id}/payments`, {
         amount: amountPaise,
         method,
         paymentDate: new Date(paymentDate).toISOString(),
@@ -59,7 +50,6 @@ const PaymentSection = ({ invoice, onPaymentSuccess }) => {
         notes
       }, {
         headers: {
-          Authorization: `Bearer ${token}`,
           'X-Idempotency-Key': idempotencyKey
         }
       });

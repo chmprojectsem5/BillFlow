@@ -35,18 +35,18 @@ const DashboardPage = () => {
     try {
       setDownloadingId(invoice._id);
       
-      const res = await fetch(`${import.meta.env.VITE_API_URL}/api/v1/invoices/${invoice._id}/pdf`, {
-        headers: {
-          'Authorization': `Bearer ${user.token}`
-        }
+      const res = await api.get(`/invoices/${invoice._id}/pdf`, {
+        responseType: 'blob'
       });
       
-      if (!res.ok) {
-        const data = await res.json();
-        throw new Error(data.message || 'Failed to download PDF');
-      }
+      const blob = res.data;
       
-      const blob = await res.blob();
+      if (blob.type === 'application/json') {
+        const text = await blob.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.error || errorData.message || 'Failed to download PDF');
+      }
+
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement('a');
       a.href = url;
@@ -57,7 +57,7 @@ const DashboardPage = () => {
       document.body.removeChild(a);
       
     } catch (err) {
-      alert(err.message);
+      alert(err.message || 'Error downloading PDF');
     } finally {
       setDownloadingId(null);
     }

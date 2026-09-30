@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
-import axios from 'axios';
+import api from '../api/axios';
 import InvoiceHeader from '../components/invoice/InvoiceHeader';
 import InvoiceMeta from '../components/invoice/InvoiceMeta';
 import BillToSection from '../components/invoice/BillToSection';
@@ -19,10 +19,7 @@ const InvoiceViewPage = () => {
 
   const fetchInvoice = async () => {
     try {
-      const token = localStorage.getItem('token');
-      const res = await axios.get(`http://localhost:5000/api/v1/invoices/${id}`, {
-        headers: { Authorization: `Bearer ${token}` }
-      });
+      const res = await api.get(`/invoices/${id}`);
       setInvoice(res.data.data.invoice);
       setLoading(false);
     } catch (err) {
@@ -67,17 +64,20 @@ const InvoiceViewPage = () => {
   const handleDownloadPdf = async () => {
     try {
       setDownloadingPdf(true);
-      const token = localStorage.getItem('token');
-      const response = await fetch(`http://localhost:5000/api/v1/invoices/${id}/pdf`, {
-        headers: { Authorization: `Bearer ${token}` }
+      const response = await api.get(`/invoices/${id}/pdf`, {
+        responseType: 'blob'
       });
       
-      if (!response.ok) {
-        throw new Error('Failed to generate PDF');
+      const blob = response.data;
+
+      if (blob.type === 'application/json') {
+        const text = await blob.text();
+        const errorData = JSON.parse(text);
+        throw new Error(errorData.error || 'Failed to generate PDF');
       }
       
       let filename = `Invoice-${invoice.invoiceNumber}.pdf`;
-      const disposition = response.headers.get('content-disposition');
+      const disposition = response.headers['content-disposition'];
       if (disposition && disposition.indexOf('filename=') !== -1) {
         const filenameRegex = /filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/;
         const matches = filenameRegex.exec(disposition);
@@ -85,8 +85,6 @@ const InvoiceViewPage = () => {
           filename = matches[1].replace(/['"]/g, '');
         }
       }
-
-      const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
