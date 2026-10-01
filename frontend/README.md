@@ -1,16 +1,31 @@
-# React + Vite
+# BillFlow-Pro Frontend
 
-This template provides a minimal setup to get React working in Vite with HMR and some Oxlint rules.
+This is the React / Vite Single Page Application (SPA) for BillFlow-Pro.
 
-Currently, two official plugins are available:
+## Production Deployment
 
-- [@vitejs/plugin-react](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react) uses [Oxc](https://oxc.rs)
-- [@vitejs/plugin-react-swc](https://github.com/vitejs/vite-plugin-react/blob/main/packages/plugin-react-swc) uses [SWC](https://swc.rs/)
+All production deployment instructions, environment variable configurations, and SPA routing requirements are documented in the root deployment guide.
 
-## React Compiler
+**➡️ Please refer to the [DEPLOYMENT.md](../DEPLOYMENT.md) guide at the root of the repository.**
 
-The React Compiler is not enabled on this template because of its impact on dev & build performances. To add it, see [this documentation](https://react.dev/learn/react-compiler/installation).
+## Local Development
 
-## Expanding the Oxlint configuration
+1. Install dependencies:
+   ```bash
+   npm install
+   ```
 
-If you are developing a production application, we recommend using TypeScript with type-aware lint rules enabled. Check out the [TS template](https://github.com/vitejs/vite/tree/main/packages/create-vite/template-react-ts) for information on how to integrate TypeScript and Oxlint's TypeScript related rules in your project.
+2. Start the development server (uses Vite HMR):
+   ```bash
+   npm run dev
+   ```
+
+3. Lint code (uses Oxlint):
+   ```bash
+   npm run lint
+   ```
+
+4. Build for production (outputs to `dist/`):
+   ```bash
+   npm run build
+   ```

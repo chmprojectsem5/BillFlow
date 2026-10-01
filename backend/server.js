@@ -1,6 +1,7 @@
 const env = require('./src/config/env');
 const connectDB = require('./src/config/db');
 const app = require('./src/app');
+const mongoose = require('mongoose');
 
 // Apply optional DNS override for specific local environments
 if (env.customDnsServers) {
@@ -50,11 +51,24 @@ process.on('unhandledRejection', (err) => {
 });
 
 // Graceful shutdown on SIGTERM (e.g., Heroku, Render, Docker)
+let isShuttingDown = false;
 process.on('SIGTERM', () => {
+  if (isShuttingDown) return;
+  isShuttingDown = true;
   console.log('👋 SIGTERM RECEIVED. Shutting down gracefully');
+  
   if (server) {
-    server.close(() => {
-      console.log('💥 Process terminated!');
+    server.close(async () => {
+      console.log('💥 HTTP server closed');
+      try {
+        await mongoose.connection.close();
+        console.log('💥 MongoDB connection closed');
+      } catch (err) {
+        console.error('💥 Error closing MongoDB connection:', err);
+      }
+      process.exit(0);
     });
+  } else {
+    process.exit(0);
   }
 });
