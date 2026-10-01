@@ -3,6 +3,7 @@ const Invoice = require('../models/Invoice');
 const Payment = require('../models/Payment');
 const Item = require('../models/Item');
 const env = require('../config/env');
+const { getBounds } = require('../utils/timezone');
 
 /**
  * Get high-level business dashboard summary
@@ -17,6 +18,18 @@ const getDashboardSummary = async (businessId) => {
   const currentYear = parseInt(parts.find(p => p.type === 'year').value, 10);
   const currentMonth = parseInt(parts.find(p => p.type === 'month').value, 10);
 
+  // Month in JS is 0-indexed, so we subtract 1 from currentMonth
+  const startDateStr = `${currentYear}-${String(currentMonth).padStart(2, '0')}-01`;
+  // Next month calculation
+  let nextYear = currentYear;
+  let nextMonth = currentMonth + 1;
+  if (nextMonth > 12) {
+    nextMonth = 1;
+    nextYear++;
+  }
+  const endDateStr = `${nextYear}-${String(nextMonth).padStart(2, '0')}-01`;
+  const { startBound, endBound } = getBounds(startDateStr, endDateStr, timeZone);
+
   const businessObjectId = new mongoose.Types.ObjectId(businessId);
 
   // 1. INVOICE METRICS
@@ -26,12 +39,7 @@ const getDashboardSummary = async (businessId) => {
       $match: {
         businessId: businessObjectId,
         status: { $ne: 'Draft' },
-        $expr: {
-          $and: [
-            { $eq: [{ $year: { date: "$date", timezone: timeZone } }, currentYear] },
-            { $eq: [{ $month: { date: "$date", timezone: timeZone } }, currentMonth] }
-          ]
-        }
+        date: { $gte: startBound, $lt: endBound }
       }
     },
     {
@@ -53,12 +61,7 @@ const getDashboardSummary = async (businessId) => {
     {
       $match: {
         businessId: businessObjectId,
-        $expr: {
-          $and: [
-            { $eq: [{ $year: { date: "$paymentDate", timezone: timeZone } }, currentYear] },
-            { $eq: [{ $month: { date: "$paymentDate", timezone: timeZone } }, currentMonth] }
-          ]
-        }
+        paymentDate: { $gte: startBound, $lt: endBound }
       }
     },
     {

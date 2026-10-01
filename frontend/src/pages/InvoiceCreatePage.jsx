@@ -16,7 +16,7 @@ const InvoiceCreatePage = () => {
   const [notes, setNotes] = useState('');
   
   const [lineItems, setLineItems] = useState([
-    { itemId: '', quantity: 1, discount: 0, unitPriceOverride: '' }
+    { _id: crypto.randomUUID(), itemId: '', quantity: 1, discount: 0, unitPriceOverride: '' }
   ]);
   
   const [preview, setPreview] = useState(null);
@@ -56,6 +56,7 @@ const InvoiceCreatePage = () => {
         
         if (inv.items && inv.items.length > 0) {
           setLineItems(inv.items.map(item => ({
+            _id: crypto.randomUUID(),
             itemId: item.itemId,
             quantity: item.quantity,
             discount: item.discount,
@@ -90,15 +91,24 @@ const InvoiceCreatePage = () => {
 
   // Trigger calculation when relevant fields change
   useEffect(() => {
+    let ignore = false;
     const validLineItems = lineItems.filter(li => li.itemId && li.quantity > 0);
     if (validLineItems.length > 0) {
-      calculatePreview(validLineItems);
+      const timerId = setTimeout(() => {
+        if (!ignore) {
+          calculatePreview(validLineItems, () => ignore);
+        }
+      }, 400);
+      return () => {
+        ignore = true;
+        clearTimeout(timerId);
+      };
     } else {
       setPreview(null);
     }
   }, [lineItems, selectedCustomer]);
 
-  const calculatePreview = async (validLineItems) => {
+  const calculatePreview = async (validLineItems, getIgnore = () => false) => {
     try {
       const payload = {
         customerId: selectedCustomer || undefined,
@@ -111,6 +121,7 @@ const InvoiceCreatePage = () => {
       };
 
       const res = await api.post('/invoices/calculate', payload);
+      if (getIgnore()) return;
       const data = res.data;
       if (data) {
         setPreview(data.data.preview);
@@ -129,7 +140,7 @@ const InvoiceCreatePage = () => {
   };
 
   const addLineItem = () => {
-    setLineItems([...lineItems, { itemId: '', quantity: 1, discount: 0, unitPriceOverride: '' }]);
+    setLineItems([...lineItems, { _id: crypto.randomUUID(), itemId: '', quantity: 1, discount: 0, unitPriceOverride: '' }]);
   };
 
   const removeLineItem = (index) => {
@@ -253,7 +264,7 @@ const InvoiceCreatePage = () => {
         <h2 className="text-lg font-medium text-gray-900 mb-4 border-b pb-2">Line Items</h2>
         <div className="space-y-4">
           {lineItems.map((li, index) => (
-            <div key={index} className="flex flex-wrap md:flex-nowrap gap-3 items-start bg-gray-50 p-4 rounded-md border border-gray-200">
+            <div key={li._id} className="flex flex-wrap md:flex-nowrap gap-3 items-start bg-gray-50 p-4 rounded-md border border-gray-200">
               <div className="w-full md:flex-1 min-w-[200px]">
                 <label className="block text-sm font-medium text-gray-700 mb-1">Item</label>
                 <select 

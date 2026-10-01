@@ -121,8 +121,18 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
   let taxTotal = 0;
   let grandTotal = 0;
 
+  // --- BULK FETCHING ---
+  const itemIds = [...new Set(itemsPayload.map(p => p.itemId))];
+  const items = await Item.find({ _id: { $in: itemIds }, businessId });
+  const itemMap = new Map(items.map(i => [i._id.toString(), i]));
+
+  const hsnSacs = [...new Set(items.map(i => i.hsnSac).filter(Boolean))];
+  const taxConfigs = await TaxConfig.find({ hsnSac: { $in: hsnSacs }, businessId });
+  const taxConfigMap = new Map(taxConfigs.map(tc => [tc.hsnSac, tc]));
+  // ---------------------
+
   for (const payloadItem of itemsPayload) {
-    const item = await Item.findOne({ _id: payloadItem.itemId, businessId });
+    const item = itemMap.get(payloadItem.itemId);
     if (!item) throw new AppError(`Item not found (ID: ${payloadItem.itemId})`, 404);
 
     // Determine unit price
@@ -152,7 +162,7 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
     let classificationType = 'HSN'; // Fallback if no tax config found, but we will require it if it has gst config
 
     if (item.hsnSac) {
-      const taxConfig = await TaxConfig.findOne({ businessId, hsnSac: item.hsnSac });
+      const taxConfig = taxConfigMap.get(item.hsnSac);
       if (!taxConfig) {
         throw new AppError(`Tax configuration missing for HSN/SAC ${item.hsnSac} (Item: ${item.name})`, 400);
       }
