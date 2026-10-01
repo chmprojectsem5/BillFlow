@@ -44,7 +44,7 @@ const updateTaxConfig = async (businessId, configId, updateData) => {
   const config = await TaxConfig.findOneAndUpdate(
     { _id: configId, businessId },
     { $set: updateData },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!config) {

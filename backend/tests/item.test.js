@@ -294,7 +294,7 @@ test('Phase 7 — Products & Services', async (t) => {
       await ItemModel.findOneAndUpdate(
         { _id: updateItem._id, businessId: businessAId },
         { $set: { unitPrice: 100.5 } },
-        { new: true, runValidators: true }
+        { returnDocument: 'after', runValidators: true }
       );
     } catch (e) {
       updateErr = e;
@@ -310,7 +310,7 @@ test('Phase 7 — Products & Services', async (t) => {
     const successItem = await ItemModel.findOneAndUpdate(
       { _id: updateItem._id, businessId: businessAId },
       { $set: { unitPrice: 2000 } },
-      { new: true, runValidators: true }
+      { returnDocument: 'after', runValidators: true }
     );
     assert.strictEqual(successItem.unitPrice, 2000, 'unitPrice must update to new integer value');
 

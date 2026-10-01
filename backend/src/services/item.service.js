@@ -112,7 +112,7 @@ const updateItem = async (businessId, itemId, updateData) => {
   const item = await Item.findOneAndUpdate(
     { _id: itemId, businessId },
     { $set: updateData },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!item) {

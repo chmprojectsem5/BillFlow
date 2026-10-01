@@ -30,10 +30,16 @@ const InvoiceCreatePage = () => {
   const [isEditing, setIsEditing] = useState(false);
 
   useEffect(() => {
+    let active = true;
     if (editInvoiceId) {
-      setIsEditing(true);
-      fetchInvoiceToEdit(editInvoiceId);
+      queueMicrotask(() => {
+        if (active) {
+          setIsEditing(true);
+          fetchInvoiceToEdit(editInvoiceId);
+        }
+      });
     }
+    return () => { active = false; };
   }, [editInvoiceId]);
 
   const fetchInvoiceToEdit = async (id) => {
@@ -104,7 +110,10 @@ const InvoiceCreatePage = () => {
         clearTimeout(timerId);
       };
     } else {
-      setPreview(null);
+      queueMicrotask(() => {
+        if (!ignore) setPreview(null);
+      });
+      return () => { ignore = true; };
     }
   }, [lineItems, selectedCustomer]);
 

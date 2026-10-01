@@ -60,7 +60,7 @@ const recordPayment = async (businessId, invoiceId, paymentData, idempotencyKey)
           }
         }
       ],
-      { session, new: true, runValidators: true, updatePipeline: true }
+      { session, returnDocument: 'after', runValidators: true, updatePipeline: true }
     );
 
     if (!updatedInvoice) {

@@ -25,7 +25,7 @@ const updateBusinessProfile = async (businessId, updateData) => {
   const business = await Business.findByIdAndUpdate(
     businessId,
     { $set: updateData },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!business) {

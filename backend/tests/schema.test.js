@@ -9,7 +9,7 @@ const Invoice = require('../src/models/Invoice');
 const Counter = require('../src/models/Counter');
 const Payment = require('../src/models/Payment');
 
-test('User Schema Validation - Required Fields and Enums', (t) => {
+test('User Schema Validation - Required Fields and Enums', async (t) => {
   const invalidRole = new User({
     businessId: new mongoose.Types.ObjectId(),
     name: 'Test User',
@@ -17,16 +17,16 @@ test('User Schema Validation - Required Fields and Enums', (t) => {
     passwordHash: 'hash',
     role: 'SuperAdmin' // Invalid enum
   });
-  const err = invalidRole.validateSync();
+  const err = await invalidRole.validate().catch(e => e);
   assert.ok(err.errors['role'], 'Should fail on invalid enum value for role');
 
   const missingFields = new User({});
-  const errMissing = missingFields.validateSync();
+  const errMissing = await missingFields.validate().catch(e => e);
   assert.ok(errMissing.errors['businessId'], 'businessId is required');
   assert.ok(errMissing.errors['email'], 'email is required');
 });
 
-test('Item Schema Validation - Product vs Service & Negative Monetary', (t) => {
+test('Item Schema Validation - Product vs Service & Negative Monetary', async (t) => {
   // Negative monetary value
   const invalidPrice = new Item({
     businessId: new mongoose.Types.ObjectId(),
@@ -36,7 +36,7 @@ test('Item Schema Validation - Product vs Service & Negative Monetary', (t) => {
     gstRate: 18,
     taxType: 'Exclusive'
   });
-  const errPrice = invalidPrice.validateSync();
+  const errPrice = await invalidPrice.validate().catch(e => e);
   assert.ok(errPrice.errors['unitPrice'], 'Should fail on negative unit price');
 
   // Product/Service conditional validation
@@ -54,12 +54,12 @@ test('Item Schema Validation - Product vs Service & Negative Monetary', (t) => {
     service.currentStock = null;
     service.lowStockThreshold = null;
   }
-  const errService = service.validateSync();
+  const errService = await service.validate().catch(e => e);
   assert.strictEqual(errService, undefined, 'Valid service should pass');
   assert.strictEqual(service.currentStock, null, 'Service stock must be null');
 });
 
-test('Invoice Schema Validation - Snapshots & Negative Monetary', (t) => {
+test('Invoice Schema Validation - Snapshots & Negative Monetary', async (t) => {
   const invoice = new Invoice({
     businessId: new mongoose.Types.ObjectId(),
     invoiceNumber: 'INV-001',
@@ -84,7 +84,7 @@ test('Invoice Schema Validation - Snapshots & Negative Monetary', (t) => {
     paymentStatus: { balanceDue: 11800 }
   });
 
-  const err = invoice.validateSync();
+  const err = await invoice.validate().catch(e => e);
   assert.ok(err.errors['items.0.lineTotal'], 'Should fail on negative line total');
 });
 
@@ -106,7 +106,7 @@ test('Index Definitions - Compound Unique Invoices & Counter', (t) => {
   assert.strictEqual(counterUniqueIndex[1].unique, true, 'Counter businessId index must be unique: true');
 });
 
-test('Phase 20 - Financial Precision Validation - Mongoose save()', (t) => {
+test('Phase 20 - Financial Precision Validation - Mongoose save()', async (t) => {
   // Test floating point rejection
   const floatItem = new Item({
     businessId: new mongoose.Types.ObjectId(),
@@ -116,7 +116,7 @@ test('Phase 20 - Financial Precision Validation - Mongoose save()', (t) => {
     costPrice: 50.25
   });
   
-  const err = floatItem.validateSync();
+  const err = await floatItem.validate().catch(e => e);
   assert.ok(err.errors['unitPrice'], 'Should fail on floating point unitPrice');
   assert.match(err.errors['unitPrice'].message, /not an integer/, 'Error message should mention integer');
   assert.ok(err.errors['costPrice'], 'Should fail on floating point costPrice');
@@ -130,7 +130,7 @@ test('Phase 20 - Financial Precision Validation - Mongoose save()', (t) => {
     costPrice: 50
   });
   
-  const validErr = validItem.validateSync();
+  const validErr = await validItem.validate().catch(e => e);
   assert.strictEqual(validErr, undefined, 'Valid integer monetary values should pass');
 });
 

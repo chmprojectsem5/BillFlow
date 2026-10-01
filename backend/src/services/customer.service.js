@@ -85,7 +85,7 @@ const updateCustomer = async (businessId, customerId, updateData) => {
   const customer = await Customer.findOneAndUpdate(
     { _id: customerId, businessId },
     { $set: updateData },
-    { new: true, runValidators: true }
+    { returnDocument: 'after', runValidators: true }
   );
 
   if (!customer) {

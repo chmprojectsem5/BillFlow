@@ -80,7 +80,9 @@ const InvoiceHistoryPage = () => {
   };
 
   useEffect(() => {
-    fetchInvoices();
+    queueMicrotask(() => {
+      fetchInvoices();
+    });
   }, [page, searchStr, statusFilter, startDate, endDate, sort, order]);
 
   const handleDownloadPdf = async (invoice) => {
