@@ -9,7 +9,7 @@ if (env.customDnsServers) {
   require('dns').setServers(env.customDnsServers);
 }
 
-const BASE = `http://localhost:${env.port}/api/v1`;
+let BASE = `http://localhost:${env.port}/api/v1`;
 const uid = Date.now();
 
 let server;
@@ -24,7 +24,13 @@ describe('Phase 15 — Dashboard', () => {
     await mongoose.connect(env.mongoUri);
     // Removed dropDatabase() to prevent interference with concurrent test files
     
-    server = app.listen(env.port);
+    await new Promise((resolve, reject) => {
+      server = app.listen(0, () => {
+        BASE = `http://localhost:${server.address().port}/api/v1`;
+        resolve();
+      });
+      server.on('error', reject);
+    });
 
     // Create Business A
     const resA = await fetch(`${BASE}/auth/register`, {
@@ -151,7 +157,7 @@ describe('Phase 15 — Dashboard', () => {
 
   after(async () => {
     await mongoose.connection.close();
-    server.close();
+    await new Promise(resolve => server.close(resolve));
   });
 
   test('1. Unauthenticated dashboard request rejected', async () => {
