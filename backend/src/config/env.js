@@ -1,6 +1,6 @@
 require('dotenv').config();
 
-const requiredEnvs = ['PORT', 'MONGO_URI', 'JWT_SECRET'];
+const requiredEnvs = ['MONGO_URI', 'JWT_SECRET'];
 const missingEnvs = requiredEnvs.filter(env => !process.env[env]);
 
 if (missingEnvs.length > 0) {

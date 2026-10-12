@@ -41,7 +41,7 @@ Managing GST compliance, invoicing, and inventory tracking simultaneously is a s
 - **Zero Disk I/O:** PDF buffers are streamed directly to the HTTP response (`responseType: 'blob'`). This prevents orphaned files, ensures concurrency safety, and simplifies containerized deployment.
 
 ### F. Inventory & Reporting Behavior
-- **Stock Automation:** Adjusting inventory creates `InventoryTransaction` ledger entries.
+- **Stock Automation:** Adjusting inventory creates `StockMovement` ledger entries.
 - **Data Aggregation:** The Dashboard and Reports heavily utilize MongoDB Aggregation Pipelines to sum taxable values and GST separated by rate and HSN, offloading computational work to the database.
 
 ## 5. Testing & Production Readiness

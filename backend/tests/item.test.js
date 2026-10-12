@@ -259,6 +259,29 @@ test('Phase 7 — Products & Services', async (t) => {
     });
     assert.strictEqual(dupSkuBRes.status, 201, 'Same SKU for different business should be allowed');
 
+    // Multiple items without SKU within same business should be allowed (verifying partialFilterExpression index)
+    const noSku1Res = await fetch(`${BASE}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenA}` },
+      body: JSON.stringify({
+        name: 'No SKU Item 1',
+        type: 'Service',
+        unitPrice: 1000
+      })
+    });
+    assert.strictEqual(noSku1Res.status, 201, 'First item without SKU in Business A should return 201');
+
+    const noSku2Res = await fetch(`${BASE}/items`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenA}` },
+      body: JSON.stringify({
+        name: 'No SKU Item 2',
+        type: 'Service',
+        unitPrice: 2000
+      })
+    });
+    assert.strictEqual(noSku2Res.status, 201, 'Second item without SKU in same Business A should return 201');
+
     const bItemId = (await dupSkuBRes.json()).data.item._id;
 
     // ===========================

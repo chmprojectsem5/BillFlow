@@ -66,7 +66,10 @@ itemSchema.pre('save', function() {
 
 itemSchema.index({ businessId: 1, type: 1 });
 itemSchema.index({ businessId: 1, name: 1 });
-// Business-scoped SKU uniqueness (sparse: allows null/missing SKU)
-itemSchema.index({ businessId: 1, sku: 1 }, { unique: true, sparse: true });
+// Business-scoped SKU uniqueness
+itemSchema.index(
+  { businessId: 1, sku: 1 }, 
+  { unique: true, partialFilterExpression: { sku: { $exists: true, $type: "string" } } }
+);
 
 module.exports = mongoose.model('Item', itemSchema);

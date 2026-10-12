@@ -67,9 +67,11 @@ const CustomersPage = () => {
   const fetchCustomers = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/customers', {
-        params: { page, search: searchStr, customerType, sort, order }
-      });
+      const params = { page, sort, order };
+      if (searchStr) params.search = searchStr;
+      if (customerType) params.customerType = customerType;
+      
+      const res = await api.get('/customers', { params });
       setCustomers(res.data.data.customers);
       setPagination(res.data.data.pagination);
     } catch (err) {

@@ -82,9 +82,12 @@ const ItemsPage = () => {
   const fetchItems = async () => {
     try {
       setLoading(true);
-      const res = await api.get('/items', {
-        params: { page, search: searchStr, type: filterType, isActive: isActiveStr, sort, order }
-      });
+      const params = { page, sort, order };
+      if (searchStr) params.search = searchStr;
+      if (filterType) params.type = filterType;
+      if (isActiveStr) params.isActive = isActiveStr;
+      
+      const res = await api.get('/items', { params });
       setItems(res.data.data.items);
       setPagination(res.data.data.pagination);
     } catch (err) {
