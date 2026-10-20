@@ -60,6 +60,15 @@ const corsOptions = {
 app.use(cors(corsOptions));
 
 // 2. ROUTES
+app.get('/', (req, res) => {
+  res.status(200).json({
+    success: true,
+    message: 'BillFlow-Pro API is online',
+    healthCheck: '/api/v1/health',
+    version: '1.0.0'
+  });
+});
+
 app.use('/api/v1', v1Routes);
 
 // Handle unknown routes
