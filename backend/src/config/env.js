@@ -22,30 +22,26 @@ if (nodeEnv === 'production') {
 }
 
 // CORS parsing
-let corsOrigins = false;
-if (nodeEnv === 'development' || nodeEnv === 'test') {
-  corsOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
-} else if (nodeEnv === 'production') {
-  if (process.env.CORS_ORIGIN) {
-    const origins = process.env.CORS_ORIGIN.split(',').map(o => o.trim());
-    if (origins.includes('*')) {
-      console.error(`[FATAL ERROR] CORS_ORIGIN must not contain wildcard '*' in production.`);
-      process.exit(1);
-    }
-    origins.forEach(origin => {
-      try {
-        const url = new URL(origin);
-        if (url.protocol !== 'http:' && url.protocol !== 'https:') {
-          console.error(`[FATAL ERROR] CORS_ORIGIN scheme must be http or https. Invalid origin: ${origin}`);
-          process.exit(1);
-        }
-      } catch (e) {
-        console.error(`[FATAL ERROR] CORS_ORIGIN contains invalid URL: ${origin}`);
+let corsOrigins = ['http://localhost:5173', 'http://127.0.0.1:5173'];
+if (process.env.CORS_ORIGIN) {
+  const origins = process.env.CORS_ORIGIN.split(',').map(o => o.trim()).filter(Boolean);
+  if (nodeEnv === 'production' && origins.includes('*')) {
+    console.error(`[FATAL ERROR] CORS_ORIGIN must not contain wildcard '*' in production.`);
+    process.exit(1);
+  }
+  origins.forEach(origin => {
+    try {
+      const url = new URL(origin);
+      if (url.protocol !== 'http:' && url.protocol !== 'https:') {
+        console.error(`[FATAL ERROR] CORS_ORIGIN scheme must be http or https. Invalid origin: ${origin}`);
         process.exit(1);
       }
-    });
-    corsOrigins = origins;
-  }
+    } catch (e) {
+      console.error(`[FATAL ERROR] CORS_ORIGIN contains invalid URL: ${origin}`);
+      process.exit(1);
+    }
+  });
+  corsOrigins = Array.from(new Set([...corsOrigins, ...origins]));
 }
 
 module.exports = {
