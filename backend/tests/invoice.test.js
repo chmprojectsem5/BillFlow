@@ -48,14 +48,14 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
     const createCustRes = await fetch(`${BASE}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'Cust Intra', state: 'Maharashtra', email: 'intra@test.com' })
+      body: JSON.stringify({ name: 'Cust Intra', state: 'Maharashtra', email: 'intra@test.com', billingAddress: '123 MG Road, Mumbai' })
     });
     const custIntraId = (await createCustRes.json()).data.customer._id;
 
     const createCustInterRes = await fetch(`${BASE}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'Cust Inter', state: 'Karnataka', email: 'inter@test.com' })
+      body: JSON.stringify({ name: 'Cust Inter', state: 'Karnataka', email: 'inter@test.com', billingAddress: '456 Brigade Rd, Bangalore' })
     });
     const custInterId = (await createCustInterRes.json()).data.customer._id;
 
@@ -138,7 +138,7 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
     assert.strictEqual(draftRes1.status, 201, 'Should create draft invoice');
     const draft1 = (await draftRes1.json()).data.invoice;
     assert.strictEqual(draft1.status, 'Draft', 'New invoice must be draft');
-    
+
     // 3. BusinessId is server-derived
     assert.strictEqual(draft1.businessId, userA.businessId, 'BusinessId should be strictly enforced from token');
 
@@ -179,12 +179,12 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
       })
     });
     const case1 = (await case1Res.json()).data.invoice;
-    assert.strictEqual(case1.summary.taxableTotal, 100000);
-    assert.strictEqual(case1.summary.cgstTotal, 9000);
-    assert.strictEqual(case1.summary.sgstTotal, 9000);
-    assert.strictEqual(case1.summary.igstTotal, 0);
-    assert.strictEqual(case1.summary.taxTotal, 18000);
-    assert.strictEqual(case1.summary.grandTotal, 118000);
+    assert.strictEqual(case1.summary.taxableTotal, '100000.00');
+    assert.strictEqual(case1.summary.cgstTotal, '9000.00');
+    assert.strictEqual(case1.summary.sgstTotal, '9000.00');
+    assert.strictEqual(case1.summary.igstTotal, '0.00');
+    assert.strictEqual(case1.summary.taxTotal, '18000.00');
+    assert.strictEqual(case1.summary.grandTotal, '118000.00');
 
     // 12. Inclusive pricing (CASE 2)
     const case2Res = await fetch(`${BASE}/invoices`, {
@@ -197,11 +197,11 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
       })
     });
     const case2 = (await case2Res.json()).data.invoice;
-    assert.strictEqual(case2.summary.taxableTotal, 100000);
-    assert.strictEqual(case2.summary.cgstTotal, 9000);
-    assert.strictEqual(case2.summary.sgstTotal, 9000);
-    assert.strictEqual(case2.summary.taxTotal, 18000);
-    assert.strictEqual(case2.summary.grandTotal, 118000);
+    assert.strictEqual(case2.summary.taxableTotal, '100000.00');
+    assert.strictEqual(case2.summary.cgstTotal, '9000.00');
+    assert.strictEqual(case2.summary.sgstTotal, '9000.00');
+    assert.strictEqual(case2.summary.taxTotal, '18000.00');
+    assert.strictEqual(case2.summary.grandTotal, '118000.00');
 
     // 19. Inter-state IGST (CASE 3)
     const case3Res = await fetch(`${BASE}/invoices`, {
@@ -214,10 +214,10 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
       })
     });
     const case3 = (await case3Res.json()).data.invoice;
-    assert.strictEqual(case3.summary.cgstTotal, 0);
-    assert.strictEqual(case3.summary.sgstTotal, 0);
-    assert.strictEqual(case3.summary.igstTotal, 18000);
-    assert.strictEqual(case3.summary.grandTotal, 118000);
+    assert.strictEqual(case3.summary.cgstTotal, '0.00');
+    assert.strictEqual(case3.summary.sgstTotal, '0.00');
+    assert.strictEqual(case3.summary.igstTotal, '18000.00');
+    assert.strictEqual(case3.summary.grandTotal, '118000.00');
 
     // Discount Calculation (CASE 4)
     const case4Res = await fetch(`${BASE}/invoices`, {
@@ -230,14 +230,14 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
       })
     });
     const case4 = (await case4Res.json()).data.invoice;
-    assert.strictEqual(case4.items[0].unitPrice, 50000, 'Price override should be respected');
-    assert.strictEqual(case4.summary.subTotal, 100000);
-    assert.strictEqual(case4.summary.discountTotal, 10000);
-    assert.strictEqual(case4.summary.taxableTotal, 90000);
-    assert.strictEqual(case4.summary.cgstTotal, 2250); // 2.5% of 90k
-    assert.strictEqual(case4.summary.sgstTotal, 2250);
-    assert.strictEqual(case4.summary.taxTotal, 4500);
-    assert.strictEqual(case4.summary.grandTotal, 94500);
+    assert.strictEqual(case4.items[0].unitPrice, '50000.00', 'Price override should be respected');
+    assert.strictEqual(case4.summary.subTotal, '100000.00');
+    assert.strictEqual(case4.summary.discountTotal, '10000.00');
+    assert.strictEqual(case4.summary.taxableTotal, '90000.00');
+    assert.strictEqual(case4.summary.cgstTotal, '2250.00'); // 2.5% of 90k
+    assert.strictEqual(case4.summary.sgstTotal, '2250.00');
+    assert.strictEqual(case4.summary.taxTotal, '4500.00');
+    assert.strictEqual(case4.summary.grandTotal, '94500.00');
 
     // 17. Multiple GST rates within same invoice
     const multiRateRes = await fetch(`${BASE}/invoices`, {
@@ -254,9 +254,9 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
       })
     });
     const multiRate = (await multiRateRes.json()).data.invoice;
-    assert.strictEqual(multiRate.summary.taxableTotal, 250000);
-    assert.strictEqual(multiRate.summary.taxTotal, 23000);
-    assert.strictEqual(multiRate.summary.grandTotal, 273000);
+    assert.strictEqual(multiRate.summary.taxableTotal, '250000.00');
+    assert.strictEqual(multiRate.summary.taxTotal, '23000.00');
+    assert.strictEqual(multiRate.summary.grandTotal, '273000.00');
 
     // 24, 25, 26, 27, 28, 29: Snapshots and Historical Stability
     // Modify customer, item, and tax config after finalizing an invoice
@@ -291,7 +291,7 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
       body: JSON.stringify({ name: 'Item 18 MODIFIED', unitPrice: 999999 })
     });
-    
+
     // Retrieve finalized invoice
     const getFinal1Res = await fetch(`${BASE}/invoices/${draftId}`, {
       headers: { Authorization: `Bearer ${userA.token}` }
@@ -299,8 +299,8 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
     const retrievedFinal1 = (await getFinal1Res.json()).data.invoice;
     assert.strictEqual(retrievedFinal1.customerSnapshot.name, 'Cust Intra', 'Customer snapshot should remain unchanged');
     assert.strictEqual(retrievedFinal1.items[0].name, 'Item 18% Excl', 'Item snapshot should remain unchanged');
-    assert.strictEqual(retrievedFinal1.items[0].unitPrice, 100000, 'Price snapshot should remain unchanged');
-    assert.strictEqual(retrievedFinal1.summary.grandTotal, 118000, 'Grand total should remain unchanged');
+    assert.strictEqual(retrievedFinal1.items[0].unitPrice, '100000.00', 'Price snapshot should remain unchanged');
+    assert.strictEqual(retrievedFinal1.summary.grandTotal, '118000.00', 'Grand total should remain unchanged');
 
     // 35. Repeated finalization of an already finalized invoice does not create another number
     const finalRepeatRes = await fetch(`${BASE}/invoices/${draftId}/finalize`, {
@@ -366,7 +366,7 @@ test('Phase 9 — Invoice Engine (Integration & Unit)', async (t) => {
     await Customer.deleteMany({ businessId: { $in: [userA.businessId, userB.businessId] } });
     await Item.deleteMany({ businessId: { $in: [userA.businessId, userB.businessId] } });
     await TaxConfig.deleteMany({ businessId: { $in: [userA.businessId, userB.businessId] } });
-    
+
   } finally {
     server.close();
     await mongoose.disconnect();

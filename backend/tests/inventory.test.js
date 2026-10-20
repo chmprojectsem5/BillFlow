@@ -56,7 +56,7 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
     const custRes = await fetch(`${BASE}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'Test Cust', state: 'Maharashtra' })
+      body: JSON.stringify({ name: 'Test Cust', state: 'Maharashtra', billingAddress: '123 Warehouse Rd, Pune' })
     });
     const custId = (await custRes.json()).data.customer._id;
 
@@ -292,7 +292,7 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
       // Stock is now 4
       const mid = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
       assert.strictEqual(mid.data.item.currentStock, 4);
-      
+
       // Finalize AGAIN — should be idempotent
       await finalizeInvoice(inv._id);
       const after = await (await fetch(`${BASE}/inventory/${prodA._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
@@ -449,11 +449,11 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
       });
       const inv = await createInvoice([{ itemId: prodA._id, quantity: 1, discount: 0 }]);
       const beforeFin = await (await fetch(`${BASE}/invoices/${inv._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
-      
+
       await finalizeInvoice(inv._id);
-      
+
       const afterFin = await (await fetch(`${BASE}/invoices/${inv._id}`, { headers: { Authorization: `Bearer ${userA.token}` } })).json();
-      
+
       // Financial fields must be identical
       assert.strictEqual(beforeFin.data.invoice.summary.grandTotal, afterFin.data.invoice.summary.grandTotal);
       assert.strictEqual(beforeFin.data.invoice.summary.taxTotal, afterFin.data.invoice.summary.taxTotal);
@@ -470,4 +470,3 @@ test('Phase 14 — Inventory (Integration)', async (t) => {
     await mongoose.connection.close();
   }
 });
-

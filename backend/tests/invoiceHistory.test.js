@@ -17,7 +17,7 @@ test('Phase 12 — Invoice History Integration', async (t) => {
   await new Promise((resolve) => {
     server = app.listen(TEST_PORT, resolve);
   });
-  
+
   let userA, userB;
   let customerId, itemId, taxConfigId, invoiceId;
   const uid = Date.now();
@@ -177,7 +177,7 @@ test('Phase 12 — Invoice History Integration', async (t) => {
         headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
         body: JSON.stringify({ name: 'Changed Customer Name' })
       });
-      
+
       // 3. Modify live Item
       await fetch(`${BASE}/items/${itemId}`, {
         method: 'PATCH',
@@ -197,15 +197,15 @@ test('Phase 12 — Invoice History Integration', async (t) => {
         headers: { Authorization: `Bearer ${userA.token}` }
       });
       const body = await res.json();
-      
+
       const targetInvoice = body.data.invoices.find(inv => inv._id === invoiceId);
-      
+
       // Verify historical invoice information remains unchanged
       assert.strictEqual(targetInvoice.customerSnapshot.name, 'History Customer');
-      assert.strictEqual(targetInvoice.summary.taxableTotal, 100000);
-      assert.strictEqual(targetInvoice.summary.taxTotal, 18000);
-      assert.strictEqual(targetInvoice.summary.grandTotal, 118000);
-      
+      assert.strictEqual(targetInvoice.summary.taxableTotal, '100000.00');
+      assert.strictEqual(targetInvoice.summary.taxTotal, '18000.00');
+      assert.strictEqual(targetInvoice.summary.grandTotal, '118000.00');
+
       // Verify projections exclude large fields
       assert.strictEqual(targetInvoice.items, undefined);
       assert.strictEqual(targetInvoice.businessSnapshot, undefined);

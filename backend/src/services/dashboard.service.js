@@ -4,11 +4,12 @@ const Payment = require('../models/Payment');
 const Item = require('../models/Item');
 const env = require('../config/env');
 const { getBounds } = require('../utils/timezone');
+const { serializeMonetary } = require('../utils/serializer');
 
 /**
  * Get high-level business dashboard summary
  * Date boundaries are dynamically computed inside MongoDB using the APP_TIMEZONE.
- * @param {string} businessId 
+ * @param {string} businessId
  */
 const getDashboardSummary = async (businessId) => {
   // Determine the current year and month in the target timezone
@@ -105,13 +106,13 @@ const getDashboardSummary = async (businessId) => {
     .select('invoiceNumber date customerSnapshot.name status summary.grandTotal')
     .lean();
 
-  return {
+  return serializeMonetary({
     kpis: {
-      salesTotal: invoiceData.salesTotal,
+      salesTotal: invoiceData.salesTotal || '0.00',
       invoiceCount: invoiceData.invoiceCount,
-      paidTotal: paymentData.paidTotal,
-      outstandingAmount: invoiceData.outstandingAmount,
-      taxTotal: invoiceData.taxTotal,
+      paidTotal: paymentData.paidTotal || '0.00',
+      outstandingAmount: invoiceData.outstandingAmount || '0.00',
+      taxTotal: invoiceData.taxTotal || '0.00',
       lowStockCount,
       outOfStockCount
     },
@@ -121,7 +122,7 @@ const getDashboardSummary = async (businessId) => {
       month: currentMonth,
       timeZone
     }
-  };
+  });
 };
 
 module.exports = {

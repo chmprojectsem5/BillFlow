@@ -1,11 +1,14 @@
 const mongoose = require('mongoose');
+const Decimal = require('decimal.js');
+const Money = require('../utils/money');
 const Invoice = require('../models/Invoice');
 const Counter = require('../models/Counter');
 const Business = require('../models/Business');
 const Customer = require('../models/Customer');
 const Item = require('../models/Item');
 const TaxConfig = require('../models/TaxConfig');
-const { calculateGST, determineSupplyType, PRICING_MODE, TAX_TREATMENT } = require('./gstCalculation.service');
+const { calculateGST, determinePlaceOfSupply, determineSupplyType, evaluateRule46Compliance, PRICING_MODE, TAX_TREATMENT } = require('./gstCalculation.service');
+const customerService = require('./customer.service');
 const AppError = require('../utils/AppError');
 const { getBounds } = require('../utils/timezone');
 
@@ -13,12 +16,26 @@ const { getBounds } = require('../utils/timezone');
  * Get all invoices for the authenticated business with search, filtering and pagination.
  */
 const getInvoices = async (businessId, query = {}) => {
-  const { page = 1, limit = 20, search, status, startDate, endDate, customerId, sort = 'date', order = 'desc' } = query;
-  
+  const { page = 1, limit = 20, search, status, billingMode, startDate, endDate, customerId, sort = 'date', order = 'desc' } = query;
+
   const filter = { businessId: new mongoose.Types.ObjectId(businessId) };
-  
+
   if (status) {
     filter.status = status;
+  }
+
+  if (billingMode) {
+    if (billingMode === 'GST-Registered') {
+      filter.$or = [
+        { billingMode: 'GST-Registered' },
+        { billingMode: { $exists: false }, 'customerSnapshot.gstin': { $exists: true, $ne: '' } }
+      ];
+    } else if (billingMode === 'General') {
+      filter.$or = [
+        { billingMode: 'General' },
+        { billingMode: { $exists: false }, 'customerSnapshot.gstin': { $in: [null, ''] } }
+      ];
+    }
   }
 
   if (customerId) {
@@ -29,13 +46,19 @@ const getInvoices = async (businessId, query = {}) => {
     const { startBound, endBound } = getBounds(startDate, endDate);
     filter.date = { $gte: startBound, $lt: endBound };
   }
-  
+
   if (search) {
     const escapedSearch = search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&');
-    filter.$or = [
+    const orConditions = [
       { invoiceNumber: { $regex: escapedSearch, $options: 'i' } },
       { 'customerSnapshot.name': { $regex: escapedSearch, $options: 'i' } }
     ];
+    if (filter.$or) {
+      filter.$and = [{ $or: filter.$or }, { $or: orConditions }];
+      delete filter.$or;
+    } else {
+      filter.$or = orConditions;
+    }
   }
 
   const sortDirection = order === 'asc' ? 1 : -1;
@@ -78,25 +101,83 @@ const getInvoices = async (businessId, query = {}) => {
  * Perform all authoritative calculations for an invoice payload and generate the snapshots.
  * Returns the fully computed invoice object (without saving).
  */
-const calculateInvoice = async (businessId, customerId, itemsPayload) => {
+const calculateInvoice = async (businessId, optionsOrCustomerId, itemsPayload) => {
   // 1. Fetch Business (needed for state comparison and invoice prefix snapshotting)
   const business = await Business.findById(businessId);
   if (!business) throw new AppError('Business not found', 404);
+  const supplierState = (business.state && business.state.trim()) || 'Maharashtra';
+
+  // Parse input options for backward compatibility
+  let customerId = null;
+  let billingMode = 'General';
+  let quickCustomer = null;
+  let placeOfSupplyInput = null;
+  let deliveryState = null;
+
+  if (typeof optionsOrCustomerId === 'string' || optionsOrCustomerId instanceof mongoose.Types.ObjectId) {
+    customerId = optionsOrCustomerId.toString();
+  } else if (optionsOrCustomerId && typeof optionsOrCustomerId === 'object') {
+    customerId = optionsOrCustomerId.customerId || null;
+    billingMode = optionsOrCustomerId.billingMode || null;
+    quickCustomer = optionsOrCustomerId.quickCustomer || null;
+    placeOfSupplyInput = optionsOrCustomerId.placeOfSupply || null;
+    deliveryState = optionsOrCustomerId.deliveryState || null;
+  }
 
   let customer = null;
   let customerSnapshot = null;
-  let supplyType = 'INTRA_STATE'; // Default
+  let posResult = null;
 
-  // 2. Fetch Customer (optional for preview, but required for creation)
+  // 2. Fetch Customer / Resolve Place of Supply
   if (customerId) {
     customer = await Customer.findOne({ _id: customerId, businessId });
     if (!customer) throw new AppError('Customer not found or does not belong to this business', 404);
-    
+
+    const hasValidGstin = customer.gstin && /^\d{2}[A-Z]{5}\d{4}[A-Z]{1}[A-Z\d]{1}[Z]{1}[A-Z\d]{1}$/.test(customer.gstin);
+    const isRegisteredCustomer = customer.gstStatus === 'Registered' || Boolean(customer.gstin);
+
+    if (!billingMode) {
+      billingMode = hasValidGstin ? 'GST-Registered' : 'General';
+    }
+
+    if (billingMode === 'GST-Registered') {
+      if (!hasValidGstin) {
+        throw new AppError(`Customer "${customer.name}" does not have a valid 15-character GSTIN. Please select a GST-registered customer or switch to General billing mode.`, 400);
+      }
+      posResult = determinePlaceOfSupply({
+        supplierState,
+        isGstRegistered: true,
+        recipientState: customer.state,
+        deliveryState,
+        placeOfSupply: placeOfSupplyInput,
+        gstin: customer.gstin
+      });
+    } else {
+      posResult = determinePlaceOfSupply({
+        supplierState,
+        isGstRegistered: false,
+        recipientState: customer.state || placeOfSupplyInput,
+        deliveryState,
+        placeOfSupply: placeOfSupplyInput
+      });
+    }
+
+    // If billingMode is General and the customer master profile is Registered,
+    // do NOT link customerId to the registered master profile to prevent inconsistent representation
+    // or polluting the registered entity's ledger with unclaimable counter sales.
+    const effectiveSnapshotCustomerId = (billingMode === 'General' && isRegisteredCustomer)
+      ? null
+      : customer._id;
+
     customerSnapshot = {
-      customerId: customer._id,
+      customerId: effectiveSnapshotCustomerId,
       name: customer.name,
-      customerType: customer.customerType,
-      gstin: customer.gstin,
+      customerType: customer.customerType || 'Individual',
+      gstStatus: billingMode === 'GST-Registered' ? (customer.gstStatus || 'Registered') : 'Unregistered',
+      billingMode,
+      placeOfSupply: posResult.placeOfSupply,
+      placeOfSupplyStateCode: posResult.placeOfSupplyStateCode,
+      gstin: billingMode === 'GST-Registered' ? customer.gstin : undefined,
       pan: customer.pan,
       billingAddress: customer.billingAddress,
       city: customer.city,
@@ -106,20 +187,69 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
       email: customer.email,
       phone: customer.phone
     };
+  } else if (quickCustomer && (quickCustomer.name || quickCustomer.phone || quickCustomer.billingAddress || quickCustomer.address || quickCustomer.state)) {
+    const recipientState = quickCustomer.state || placeOfSupplyInput;
+    posResult = determinePlaceOfSupply({
+      supplierState,
+      isGstRegistered: false,
+      recipientState,
+      deliveryState,
+      placeOfSupply: placeOfSupplyInput
+    });
 
-    supplyType = determineSupplyType(business.state, customer.state);
+    customerSnapshot = {
+      customerId: null,
+      name: (quickCustomer.name && quickCustomer.name.trim()) || 'Walk-in Customer',
+      customerType: 'Individual',
+      gstStatus: 'Unregistered',
+      billingMode: 'General',
+      placeOfSupply: posResult.placeOfSupply,
+      placeOfSupplyStateCode: posResult.placeOfSupplyStateCode,
+      billingAddress: quickCustomer.billingAddress || quickCustomer.address,
+      city: quickCustomer.city,
+      state: quickCustomer.state || posResult.placeOfSupply,
+      pinCode: quickCustomer.pinCode,
+      country: quickCustomer.country || 'India',
+      email: quickCustomer.email,
+      phone: quickCustomer.phone
+    };
+  } else {
+    // Anonymous Walk-in Sale
+    if (billingMode === 'GST-Registered') {
+      throw new AppError('A registered customer profile must be selected in GST-Registered billing mode.', 400);
+    }
+    posResult = determinePlaceOfSupply({
+      supplierState,
+      isGstRegistered: false,
+      recipientState: placeOfSupplyInput || null,
+      deliveryState,
+      placeOfSupply: placeOfSupplyInput
+    });
+
+    customerSnapshot = {
+      customerId: null,
+      name: 'Walk-in / Counter Sale',
+      customerType: 'Individual',
+      gstStatus: 'Unregistered',
+      billingMode: 'General',
+      placeOfSupply: posResult.placeOfSupply,
+      placeOfSupplyStateCode: posResult.placeOfSupplyStateCode,
+      country: 'India'
+    };
   }
+
+  const supplyType = posResult.supplyType;
 
   // 3. Process Line Items
   const itemsSnapshot = [];
-  let subTotal = 0;
-  let discountTotal = 0;
-  let taxableTotal = 0;
-  let cgstTotal = 0;
-  let sgstTotal = 0;
-  let igstTotal = 0;
-  let taxTotal = 0;
-  let grandTotal = 0;
+  let subTotal = new Decimal(0);
+  let discountTotal = new Decimal(0);
+  let taxableTotal = new Decimal(0);
+  let cgstTotal = new Decimal(0);
+  let sgstTotal = new Decimal(0);
+  let igstTotal = new Decimal(0);
+  let taxTotal = new Decimal(0);
+  let grandTotal = new Decimal(0);
 
   // --- BULK FETCHING ---
   const itemIds = [...new Set(itemsPayload.map(p => p.itemId))];
@@ -136,21 +266,25 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
     if (!item) throw new AppError(`Item not found (ID: ${payloadItem.itemId})`, 404);
 
     // Determine unit price
-    const unitPrice = payloadItem.unitPriceOverride !== undefined 
-      ? payloadItem.unitPriceOverride 
+    const rawUnitPrice = payloadItem.unitPriceOverride !== undefined
+      ? payloadItem.unitPriceOverride
       : item.unitPrice;
+    const unitPrice = Money.parseInput(rawUnitPrice, { fieldName: 'unitPrice' });
+    const unitPriceDec = new Decimal(unitPrice);
 
-    const quantity = payloadItem.quantity;
-    const discount = payloadItem.discount || 0;
+    const quantityDec = new Decimal(payloadItem.quantity);
+    const rawDiscount = payloadItem.discount !== undefined ? payloadItem.discount : '0.00';
+    const discount = Money.parseInput(rawDiscount, { isOptional: true, fieldName: 'discount' }) || '0.00';
+    const discountDec = new Decimal(discount);
     const pricingMode = item.taxType === 'Inclusive' ? PRICING_MODE.INCLUSIVE : PRICING_MODE.EXCLUSIVE;
 
-    const grossAmount = Math.round(unitPrice * quantity);
-    
-    if (discount > grossAmount) {
-      throw new AppError(`Discount (${discount}) cannot be greater than gross amount (${grossAmount}) for item ${item.name}`, 400);
+    const grossAmountDec = Money.round(unitPriceDec.times(quantityDec));
+
+    if (discountDec.greaterThan(grossAmountDec)) {
+      throw new AppError(`Discount (${discount}) cannot be greater than gross amount (${grossAmountDec.toFixed(2)}) for item ${item.name}`, 400);
     }
 
-    const amountAfterDiscount = grossAmount - discount;
+    const amountAfterDiscountDec = grossAmountDec.minus(discountDec);
 
     // Fetch tax config if item has HSN/SAC
     let taxTreatment = TAX_TREATMENT.TAXABLE; // Default assumption if no config implies taxable, but wait, Phase 8 says:
@@ -166,11 +300,11 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
       if (!taxConfig) {
         throw new AppError(`Tax configuration missing for HSN/SAC ${item.hsnSac} (Item: ${item.name})`, 400);
       }
-      
+
       taxTreatment = taxConfig.taxTreatment;
       gstRate = taxConfig.gstRate;
       classificationType = taxConfig.classificationType;
-      
+
       if (taxTreatment === TAX_TREATMENT.TAXABLE) {
         if (supplyType === 'INTRA_STATE') {
           cgstRate = gstRate / 2;
@@ -180,7 +314,7 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
         }
       }
     } else {
-      // If no HSN/SAC provided on item, we assume 0% Non-GST or require it. 
+      // If no HSN/SAC provided on item, we assume 0% Non-GST or require it.
       // Safe fallback for items without GST configuration is NON_GST or 0% EXEMPT.
       // Let's assume NON_GST for items not configured for tax.
       taxTreatment = TAX_TREATMENT.NON_GST;
@@ -189,7 +323,7 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
 
     // Phase 8 Engine Calculation
     const taxCalculation = calculateGST({
-      amountPaise: amountAfterDiscount,
+      amount: amountAfterDiscountDec.toFixed(2),
       gstRate,
       pricingMode,
       supplyType,
@@ -205,15 +339,15 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
       hsnSac: item.hsnSac,
       classificationType,
       taxTreatment,
-      quantity,
+      quantity: payloadItem.quantity,
       unit: item.unit,
-      unitPrice,
+      unitPrice: unitPriceDec.toFixed(2),
       pricingMode,
       gstRate,
       cgstRate,
       sgstRate,
       igstRate,
-      discount,
+      discount: discountDec.toFixed(2),
       taxableValue: taxCalculation.taxableAmount,
       cgst: taxCalculation.cgst,
       sgst: taxCalculation.sgst,
@@ -223,23 +357,44 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
     });
 
     // Aggregate totals
-    subTotal += grossAmount;
-    discountTotal += discount;
-    taxableTotal += taxCalculation.taxableAmount;
-    cgstTotal += taxCalculation.cgst;
-    sgstTotal += taxCalculation.sgst;
-    igstTotal += taxCalculation.igst;
-    taxTotal += taxCalculation.totalGST;
-    grandTotal += taxCalculation.total;
+    subTotal = subTotal.plus(grossAmountDec);
+    discountTotal = discountTotal.plus(discountDec);
+    taxableTotal = taxableTotal.plus(new Decimal(taxCalculation.taxableAmount));
+    cgstTotal = cgstTotal.plus(new Decimal(taxCalculation.cgst));
+    sgstTotal = sgstTotal.plus(new Decimal(taxCalculation.sgst));
+    igstTotal = igstTotal.plus(new Decimal(taxCalculation.igst));
+    taxTotal = taxTotal.plus(new Decimal(taxCalculation.totalGST));
+    grandTotal = grandTotal.plus(new Decimal(taxCalculation.total));
   }
+
+  // Rule 46 compliance evaluation for unregistered recipients
+  const rule46 = evaluateRule46Compliance({
+    billingMode,
+    customerSnapshot,
+    placeOfSupply: posResult.placeOfSupply,
+    placeOfSupplyStateCode: posResult.placeOfSupplyStateCode,
+    taxableTotal
+  });
 
   // Ensure balance calculation
   const paymentStatus = {
-    paidAmount: 0,
-    balanceDue: grandTotal
+    paidAmount: '0.00',
+    balanceDue: grandTotal.toFixed(2)
   };
 
   return {
+    billingMode,
+    placeOfSupply: posResult.placeOfSupply,
+    placeOfSupplyStateCode: posResult.placeOfSupplyStateCode,
+    supplyType,
+    taxDecision: {
+      placeOfSupply: posResult.placeOfSupply,
+      placeOfSupplyStateCode: posResult.placeOfSupplyStateCode,
+      supplyType,
+      isFallback: posResult.isFallback,
+      explanation: posResult.explanation,
+      rule46
+    },
     customerSnapshot,
     businessSnapshot: {
       name: business.name,
@@ -249,14 +404,14 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
     },
     items: itemsSnapshot,
     summary: {
-      subTotal,
-      discountTotal,
-      taxableTotal,
-      cgstTotal,
-      sgstTotal,
-      igstTotal,
-      taxTotal,
-      grandTotal
+      subTotal: subTotal.toFixed(2),
+      discountTotal: discountTotal.toFixed(2),
+      taxableTotal: taxableTotal.toFixed(2),
+      cgstTotal: cgstTotal.toFixed(2),
+      sgstTotal: sgstTotal.toFixed(2),
+      igstTotal: igstTotal.toFixed(2),
+      taxTotal: taxTotal.toFixed(2),
+      grandTotal: grandTotal.toFixed(2)
     },
     paymentStatus
   };
@@ -266,34 +421,87 @@ const calculateInvoice = async (businessId, customerId, itemsPayload) => {
  * Creates a new DRAFT invoice
  */
 const createDraftInvoice = async (businessId, payload) => {
-  const { customerId, date, dueDate, notes, terms, items: itemsPayload } = payload;
-  
-  if (!customerId) throw new AppError('customerId is required to save an invoice', 400);
-
-  const calculatedData = await calculateInvoice(businessId, customerId, itemsPayload);
-
-  // We assign a temporary string for invoiceNumber since it is required by schema. 
-  // It will be overwritten upon finalization. 
-  // Draft prefix to ensure it doesn't conflict with finalized sequence.
-  const tempInvoiceNumber = `DRAFT-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`;
-
-  const invoice = new Invoice({
-    businessId,
-    invoiceNumber: tempInvoiceNumber,
+  const {
+    billingMode: inputBillingMode,
+    customerId: inputCustomerId,
+    quickCustomer,
+    placeOfSupply,
+    deliveryAddress,
+    deliveryState,
     date,
     dueDate,
-    status: 'Draft',
-    customerSnapshot: calculatedData.customerSnapshot,
-    businessSnapshot: calculatedData.businessSnapshot,
-    items: calculatedData.items,
-    summary: calculatedData.summary,
-    paymentStatus: calculatedData.paymentStatus,
     notes,
-    terms
-  });
+    terms,
+    items: itemsPayload
+  } = payload;
 
-  await invoice.save();
-  return invoice;
+  const billingMode = inputBillingMode || null;
+
+  if (billingMode === 'GST-Registered' && !inputCustomerId) {
+    throw new AppError('A registered customer profile must be selected in GST-Registered mode.', 400);
+  }
+
+  let effectiveCustomerId = inputCustomerId || null;
+  let newlyCreatedCustomerId = null;
+
+  try {
+    // If General mode and quick customer details are provided (name or phone),
+    // automatically persist / reuse the customer record through customerService.
+    if ((billingMode === 'General' || !billingMode) && !effectiveCustomerId && quickCustomer && (quickCustomer.name || quickCustomer.phone)) {
+      const persistedCustomer = await customerService.findOrCreateGeneralCustomer(businessId, quickCustomer);
+      effectiveCustomerId = persistedCustomer._id;
+      if (persistedCustomer._isNewGeneralCustomer) {
+        newlyCreatedCustomerId = persistedCustomer._id;
+      }
+    }
+
+    const calcOptions = {
+      customerId: effectiveCustomerId,
+      billingMode,
+      quickCustomer,
+      placeOfSupply,
+      deliveryState
+    };
+
+    const calculatedData = await calculateInvoice(businessId, calcOptions, itemsPayload);
+
+    if (effectiveCustomerId && calculatedData.customerSnapshot && calculatedData.customerSnapshot.customerId !== null) {
+      calculatedData.customerSnapshot.customerId = effectiveCustomerId;
+    }
+
+    // We assign a temporary string for invoiceNumber since it is required by schema.
+    // It will be overwritten upon finalization.
+    // Draft prefix to ensure it doesn't conflict with finalized sequence.
+    const tempInvoiceNumber = `DRAFT-${new mongoose.Types.ObjectId().toString().slice(-6).toUpperCase()}`;
+
+    const invoice = new Invoice({
+      businessId,
+      invoiceNumber: tempInvoiceNumber,
+      date,
+      dueDate,
+      status: 'Draft',
+      billingMode: calculatedData.billingMode,
+      placeOfSupply: calculatedData.placeOfSupply,
+      placeOfSupplyStateCode: calculatedData.placeOfSupplyStateCode,
+      customerSnapshot: calculatedData.customerSnapshot,
+      businessSnapshot: calculatedData.businessSnapshot,
+      items: calculatedData.items,
+      summary: calculatedData.summary,
+      paymentStatus: calculatedData.paymentStatus,
+      notes,
+      terms
+    });
+
+    await invoice.save();
+    return invoice;
+  } catch (err) {
+    // Transactional consistency guarantee:
+    // If draft invoice creation fails, do not leave an orphaned quick customer created in this transaction
+    if (newlyCreatedCustomerId) {
+      await Customer.deleteOne({ _id: newlyCreatedCustomerId, businessId }).catch(() => {});
+    }
+    throw err;
+  }
 };
 
 /**
@@ -304,21 +512,38 @@ const updateDraftInvoice = async (businessId, invoiceId, payload) => {
   if (!invoice) throw new AppError('Invoice not found', 404);
   if (invoice.status !== 'Draft') throw new AppError('Only Draft invoices can be updated', 400);
 
-  // Default to existing customer/items if not provided in payload (though usually it's full replacement)
-  const customerId = payload.customerId || invoice.customerSnapshot.customerId;
-  
+  const billingMode = payload.billingMode || invoice.billingMode || 'General';
+  let customerId = payload.customerId !== undefined ? payload.customerId : invoice.customerSnapshot?.customerId;
+  const quickCustomer = payload.quickCustomer || null;
+  const placeOfSupply = payload.placeOfSupply || invoice.placeOfSupply;
+  const deliveryState = payload.deliveryState || null;
+
+  if (billingMode === 'General' && !customerId && quickCustomer && (quickCustomer.name || quickCustomer.phone)) {
+    const persistedCustomer = await customerService.findOrCreateGeneralCustomer(businessId, quickCustomer);
+    customerId = persistedCustomer._id;
+  }
+
   let calculatedData = null;
-  
-  // If items changed, recalculate. If not, preserve existing snapshots.
-  if (payload.items && payload.items.length > 0) {
-    calculatedData = await calculateInvoice(businessId, customerId, payload.items);
-  } else if (payload.customerId && payload.customerId !== invoice.customerSnapshot.customerId.toString()) {
-    // If only customer changed but we don't have items payload, we can't easily recalculate supplyType/IGST without pulling existing items.
-    // Let's require items payload if customer changes to ensure safe tax recalculation.
-    throw new AppError('When updating customer, items array must be provided to recalculate taxes', 400);
+
+  // If items changed or customer changed or mode changed, recalculate.
+  const itemsToCalculate = payload.items && payload.items.length > 0 ? payload.items : invoice.items;
+  if (itemsToCalculate && itemsToCalculate.length > 0) {
+    calculatedData = await calculateInvoice(businessId, {
+      customerId,
+      billingMode,
+      quickCustomer,
+      placeOfSupply,
+      deliveryState
+    }, itemsToCalculate);
   }
 
   if (calculatedData) {
+    if (customerId && calculatedData.customerSnapshot && calculatedData.customerSnapshot.customerId !== null) {
+      calculatedData.customerSnapshot.customerId = customerId;
+    }
+    invoice.billingMode = billingMode;
+    invoice.placeOfSupply = calculatedData.placeOfSupply;
+    invoice.placeOfSupplyStateCode = calculatedData.placeOfSupplyStateCode;
     invoice.customerSnapshot = calculatedData.customerSnapshot;
     invoice.businessSnapshot = calculatedData.businessSnapshot;
     invoice.items = calculatedData.items;
@@ -359,6 +584,23 @@ const finalizeInvoice = async (businessId, invoiceId) => {
     throw new AppError(`Cannot finalize invoice in status: ${invoice.status}`, 400);
   }
 
+  // Rule 46 Verification before finalization:
+  // For taxable supply of goods >= ₹50,000 to an unregistered recipient, mandatory recipient details must be recorded.
+  const rule46Check = evaluateRule46Compliance({
+    billingMode: invoice.billingMode,
+    customerSnapshot: invoice.customerSnapshot,
+    placeOfSupply: invoice.placeOfSupply,
+    placeOfSupplyStateCode: invoice.placeOfSupplyStateCode,
+    taxableTotal: invoice.summary?.taxableTotal
+  });
+
+  if (rule46Check.isApplicable && rule46Check.thresholdExceeded && !rule46Check.compliant) {
+    throw new AppError(
+      `Under GST Rule 46, for an unregistered recipient where taxable supply value is ₹${rule46Check.taxableTotal} (>= ₹50,000), the invoice must contain the recipient name, address, and delivery state with state code. Missing: ${rule46Check.missingFields.join(', ')}.`,
+      400
+    );
+  }
+
   // Use a transaction for atomic finalization + stock deduction
   const inventoryService = require('./inventory.service');
   const session = await mongoose.startSession();
@@ -378,11 +620,11 @@ const finalizeInvoice = async (businessId, invoiceId) => {
       // 2. Update the invoice atomically (guarding against concurrent finalizations)
       const updateResult = await Invoice.findOneAndUpdate(
         { _id: invoiceId, businessId, status: 'Draft' }, // Crucial guard condition
-        { 
-          $set: { 
+        {
+          $set: {
             status: 'Unpaid',
-            invoiceNumber: finalInvoiceNumber 
-          } 
+            invoiceNumber: finalInvoiceNumber
+          }
         },
         { returnDocument: 'after', session }
       );

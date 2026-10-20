@@ -54,7 +54,8 @@ app.use(express.urlencoded({ extended: true, limit: '10kb' }));
 // CORS setup
 const corsOptions = {
   origin: env.corsOrigins,
-  credentials: true
+  credentials: true,
+  exposedHeaders: ['Content-Disposition']
 };
 app.use(cors(corsOptions));
 

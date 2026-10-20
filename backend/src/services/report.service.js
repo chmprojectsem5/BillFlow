@@ -2,6 +2,7 @@ const mongoose = require('mongoose');
 const Invoice = require('../models/Invoice');
 const env = require('../config/env');
 const { getBounds } = require('../utils/timezone');
+const { serializeMonetary } = require('../utils/serializer');
 
 const getBaseMatch = (businessId, startDate, endDate) => {
   const { startBound, endBound } = getBounds(startDate, endDate, env.timezone);
@@ -30,14 +31,16 @@ const getSalesReport = async (businessId, startDate, endDate) => {
     }
   ]);
 
-  return stats[0] || {
-    salesTotal: 0,
-    taxableTotal: 0,
-    taxTotal: 0,
+  const defaultStats = {
+    salesTotal: '0.00',
+    taxableTotal: '0.00',
+    taxTotal: '0.00',
     invoiceCount: 0,
-    paidAgainstIncludedInvoices: 0,
-    balanceDueOnIncludedInvoices: 0
+    paidAgainstIncludedInvoices: '0.00',
+    balanceDueOnIncludedInvoices: '0.00'
   };
+
+  return serializeMonetary(stats[0] || defaultStats);
 };
 
 const getGSTSummary = async (businessId, startDate, endDate) => {
@@ -56,12 +59,14 @@ const getGSTSummary = async (businessId, startDate, endDate) => {
     }
   ]);
 
-  return stats[0] || {
-    cgstTotal: 0,
-    sgstTotal: 0,
-    igstTotal: 0,
-    totalTax: 0
+  const defaultStats = {
+    cgstTotal: '0.00',
+    sgstTotal: '0.00',
+    igstTotal: '0.00',
+    totalTax: '0.00'
   };
+
+  return serializeMonetary(stats[0] || defaultStats);
 };
 
 const getGSTRateWise = async (businessId, startDate, endDate) => {
@@ -98,7 +103,7 @@ const getGSTRateWise = async (businessId, startDate, endDate) => {
     { $sort: { gstRate: 1, taxTreatment: 1 } }
   ]);
 
-  return stats;
+  return serializeMonetary(stats);
 };
 
 const getGSTHSNWise = async (businessId, startDate, endDate, page = 1, limit = 50) => {
@@ -153,7 +158,6 @@ const getGSTHSNWise = async (businessId, startDate, endDate, page = 1, limit = 5
     { $sort: { classificationType: 1, hsnSac: 1 } }
   ];
 
-  // We need total rows for pagination. Use a facet.
   const facetResult = await Invoice.aggregate([
     ...pipeline,
     {
@@ -169,7 +173,7 @@ const getGSTHSNWise = async (businessId, startDate, endDate, page = 1, limit = 5
   const totalPages = Math.ceil(totalRows / limit);
 
   return {
-    data: result.data,
+    data: serializeMonetary(result.data),
     pagination: {
       page,
       limit,

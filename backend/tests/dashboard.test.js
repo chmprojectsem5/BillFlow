@@ -23,7 +23,7 @@ describe('Phase 15 — Dashboard', () => {
   before(async () => {
     await mongoose.connect(env.mongoUri);
     // Removed dropDatabase() to prevent interference with concurrent test files
-    
+
     await new Promise((resolve, reject) => {
       server = app.listen(0, () => {
         BASE = `http://localhost:${server.address().port}/api/v1`;
@@ -47,7 +47,7 @@ describe('Phase 15 — Dashboard', () => {
       body: JSON.stringify({ name: 'User B', email: `b_${uid}@test.com`, password: 'password123', businessName: 'Biz B' })
     });
     userB = (await resB.json()).data;
-    
+
     // Tax Config A
     const tA = await fetch(`${BASE}/tax-config`, {
       method: 'POST',
@@ -60,7 +60,7 @@ describe('Phase 15 — Dashboard', () => {
     const cA = await fetch(`${BASE}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'Cust A', customerType: 'Individual', state: 'Maharashtra' })
+      body: JSON.stringify({ name: 'Cust A', customerType: 'Individual', state: 'Maharashtra', billingAddress: '123 MG Road, Mumbai' })
     });
     custA = (await cA.json()).data.customer;
 
@@ -68,7 +68,7 @@ describe('Phase 15 — Dashboard', () => {
     const cB = await fetch(`${BASE}/customers`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userB.token}` },
-      body: JSON.stringify({ name: 'Cust B', customerType: 'Individual', state: 'Delhi' })
+      body: JSON.stringify({ name: 'Cust B', customerType: 'Individual', state: 'Delhi', billingAddress: '456 Ring Road, Delhi' })
     });
     custB = (await cB.json()).data.customer;
 
@@ -79,7 +79,7 @@ describe('Phase 15 — Dashboard', () => {
       body: JSON.stringify({ name: 'Prod A', type: 'Product', unitPrice: 100000, hsnSac: '1234', sku: 'SKU1' }) // 1000 INR
     });
     prodA = (await iA.json()).data.item;
-    
+
     // Adjust stock to 2 (low stock threshold is default null, let's update it to 5)
     await fetch(`${BASE}/items/${prodA._id}`, {
       method: 'PATCH',
@@ -117,7 +117,7 @@ describe('Phase 15 — Dashboard', () => {
     });
     let invA = (await invRes1.json()).data.invoice;
     await fetch(`${BASE}/invoices/${invA._id}/finalize`, { method: 'POST', headers: { Authorization: `Bearer ${userA.token}` }});
-    
+
     // Partial payment for A
     await fetch(`${BASE}/invoices/${invA._id}/payments`, {
       method: 'POST',
@@ -171,17 +171,17 @@ describe('Phase 15 — Dashboard', () => {
     });
     assert.strictEqual(res.status, 200);
     const data = await res.json();
-    
+
     // Check KPIs
     const kpis = data.data.kpis;
-    
+
     // 1 finalized invoice for A (Svc A qty 2 = 100k + 18% tax = 118k grand total)
     assert.strictEqual(kpis.invoiceCount, 1, 'Draft excluded, only finalized counted');
-    assert.strictEqual(kpis.salesTotal, 118000, 'Sales total from finalized invoice only');
-    assert.strictEqual(kpis.taxTotal, 18000, 'Tax total from finalized invoice');
-    assert.strictEqual(kpis.paidTotal, 20000, 'Paid amount from payments');
-    assert.strictEqual(kpis.outstandingAmount, 98000, 'Outstanding is grandTotal - paidAmount');
-    
+    assert.strictEqual(kpis.salesTotal, '118000.00', 'Sales total from finalized invoice only');
+    assert.strictEqual(kpis.taxTotal, '18000.00', 'Tax total from finalized invoice');
+    assert.strictEqual(kpis.paidTotal, '20000.00', 'Paid amount from payments');
+    assert.strictEqual(kpis.outstandingAmount, '98000.00', 'Outstanding is grandTotal - paidAmount');
+
     // Inventory
     assert.strictEqual(kpis.lowStockCount, 1, 'Prod A is low stock');
     assert.strictEqual(kpis.outOfStockCount, 0, 'No out of stock');
@@ -198,9 +198,9 @@ describe('Phase 15 — Dashboard', () => {
     });
     const data = await res.json();
     const kpis = data.data.kpis;
-    
+
     assert.strictEqual(kpis.invoiceCount, 1);
-    assert.strictEqual(kpis.salesTotal, 200000); // 200k + 0 tax
-    assert.strictEqual(kpis.paidTotal, 0);
+    assert.strictEqual(kpis.salesTotal, '200000.00'); // 200k + 0 tax
+    assert.strictEqual(kpis.paidTotal, '0.00');
   });
 });

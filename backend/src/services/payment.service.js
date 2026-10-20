@@ -1,26 +1,30 @@
 const mongoose = require('mongoose');
+const Money = require('../utils/money');
 const Payment = require('../models/Payment');
 const Invoice = require('../models/Invoice');
 const AppError = require('../utils/AppError');
 
 /**
  * Record a payment securely with a MongoDB Transaction.
- * 
- * @param {string} businessId 
- * @param {string} invoiceId 
- * @param {object} paymentData 
- * @param {string} idempotencyKey 
+ *
+ * @param {string} businessId
+ * @param {string} invoiceId
+ * @param {object} paymentData
+ * @param {string} idempotencyKey
  */
 const recordPayment = async (businessId, invoiceId, paymentData, idempotencyKey) => {
+  const canonicalAmount = Money.parseInput(paymentData.amount, { fieldName: 'Payment amount' });
+  const paymentAmountDecimal128 = Money.toDecimal128(canonicalAmount);
+
   // 1. Idempotency Check Before Transaction
   const existingPayment = await Payment.findOne({ businessId, idempotencyKey });
   if (existingPayment) {
-    const isSame = existingPayment.amount === paymentData.amount &&
+    const isSame = String(existingPayment.amount) === canonicalAmount &&
                    new Date(existingPayment.paymentDate).getTime() === new Date(paymentData.paymentDate).getTime() &&
                    existingPayment.method === paymentData.method &&
                    (existingPayment.referenceNumber || '') === (paymentData.referenceNumber || '') &&
                    (existingPayment.notes || '') === (paymentData.notes || '');
-                   
+
     if (isSame) {
       const invoice = await Invoice.findById(existingPayment.invoiceId);
       return { payment: existingPayment, invoice, isDuplicate: true };
@@ -38,21 +42,21 @@ const recordPayment = async (businessId, invoiceId, paymentData, idempotencyKey)
       {
         _id: invoiceId,
         businessId,
-        'paymentStatus.balanceDue': { $gte: paymentData.amount },
+        'paymentStatus.balanceDue': { $gte: paymentAmountDecimal128 },
         status: { $in: ['Unpaid', 'Partially Paid', 'Overdue'] }
       },
       [
         {
           $set: {
-            'paymentStatus.paidAmount': { $add: ['$paymentStatus.paidAmount', paymentData.amount] },
-            'paymentStatus.balanceDue': { $subtract: ['$paymentStatus.balanceDue', paymentData.amount] }
+            'paymentStatus.paidAmount': { $add: ['$paymentStatus.paidAmount', paymentAmountDecimal128] },
+            'paymentStatus.balanceDue': { $subtract: ['$paymentStatus.balanceDue', paymentAmountDecimal128] }
           }
         },
         {
           $set: {
             status: {
               $cond: {
-                if: { $eq: ['$paymentStatus.balanceDue', 0] },
+                if: { $lte: ['$paymentStatus.balanceDue', Money.toDecimal128('0.00')] },
                 then: 'Paid',
                 else: 'Partially Paid'
               }
@@ -80,7 +84,7 @@ const recordPayment = async (businessId, invoiceId, paymentData, idempotencyKey)
       businessId,
       invoiceId,
       idempotencyKey,
-      amount: paymentData.amount,
+      amount: paymentAmountDecimal128,
       paymentDate: paymentData.paymentDate,
       method: paymentData.method,
       referenceNumber: paymentData.referenceNumber,

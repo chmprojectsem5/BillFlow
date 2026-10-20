@@ -19,147 +19,147 @@ const { calculateGST, determineSupplyType, SUPPLY_TYPE, PRICING_MODE, TAX_TREATM
 
 test('GST Engine — 18% Exclusive Intra-State', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 18,
+    amount: 100000, gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 100000);
-  assert.strictEqual(result.totalGST, 18000);
-  assert.strictEqual(result.cgst, 9000);
-  assert.strictEqual(result.sgst, 9000);
-  assert.strictEqual(result.igst, 0);
-  assert.strictEqual(result.total, 118000);
+  assert.strictEqual(result.taxableAmount, '100000.00');
+  assert.strictEqual(result.totalGST, '18000.00');
+  assert.strictEqual(result.cgst, '9000.00');
+  assert.strictEqual(result.sgst, '9000.00');
+  assert.strictEqual(result.igst, '0.00');
+  assert.strictEqual(result.total, '118000.00');
 });
 
 test('GST Engine — 18% Inclusive Intra-State', () => {
   const result = calculateGST({
-    amountPaise: 118000, gstRate: 18,
+    amount: 118000, gstRate: 18,
     pricingMode: 'INCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 100000);
-  assert.strictEqual(result.totalGST, 18000);
-  assert.strictEqual(result.cgst, 9000);
-  assert.strictEqual(result.sgst, 9000);
-  assert.strictEqual(result.igst, 0);
-  assert.strictEqual(result.total, 118000);
+  assert.strictEqual(result.taxableAmount, '100000.00');
+  assert.strictEqual(result.totalGST, '18000.00');
+  assert.strictEqual(result.cgst, '9000.00');
+  assert.strictEqual(result.sgst, '9000.00');
+  assert.strictEqual(result.igst, '0.00');
+  assert.strictEqual(result.total, '118000.00');
 });
 
 test('GST Engine — 18% Exclusive Inter-State', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 18,
+    amount: 100000, gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTER_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 100000);
-  assert.strictEqual(result.cgst, 0);
-  assert.strictEqual(result.sgst, 0);
-  assert.strictEqual(result.igst, 18000);
-  assert.strictEqual(result.totalGST, 18000);
-  assert.strictEqual(result.total, 118000);
+  assert.strictEqual(result.taxableAmount, '100000.00');
+  assert.strictEqual(result.cgst, '0.00');
+  assert.strictEqual(result.sgst, '0.00');
+  assert.strictEqual(result.igst, '18000.00');
+  assert.strictEqual(result.totalGST, '18000.00');
+  assert.strictEqual(result.total, '118000.00');
 });
 
 test('GST Engine — 0% Taxable', () => {
   const result = calculateGST({
-    amountPaise: 50000, gstRate: 0,
+    amount: 50000, gstRate: 0,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 50000);
-  assert.strictEqual(result.totalGST, 0);
-  assert.strictEqual(result.total, 50000);
+  assert.strictEqual(result.taxableAmount, '50000.00');
+  assert.strictEqual(result.totalGST, '0.00');
+  assert.strictEqual(result.total, '50000.00');
 });
 
 test('GST Engine — 5% Exclusive', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 5,
+    amount: 100000, gstRate: 5,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 100000);
-  assert.strictEqual(result.totalGST, 5000);
-  assert.strictEqual(result.cgst, 2500);
-  assert.strictEqual(result.sgst, 2500);
-  assert.strictEqual(result.total, 105000);
+  assert.strictEqual(result.taxableAmount, '100000.00');
+  assert.strictEqual(result.totalGST, '5000.00');
+  assert.strictEqual(result.cgst, '2500.00');
+  assert.strictEqual(result.sgst, '2500.00');
+  assert.strictEqual(result.total, '105000.00');
 });
 
 test('GST Engine — 12% Exclusive', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 12,
+    amount: 100000, gstRate: 12,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 100000);
-  assert.strictEqual(result.totalGST, 12000);
-  assert.strictEqual(result.cgst, 6000);
-  assert.strictEqual(result.sgst, 6000);
-  assert.strictEqual(result.total, 112000);
+  assert.strictEqual(result.taxableAmount, '100000.00');
+  assert.strictEqual(result.totalGST, '12000.00');
+  assert.strictEqual(result.cgst, '6000.00');
+  assert.strictEqual(result.sgst, '6000.00');
+  assert.strictEqual(result.total, '112000.00');
 });
 
 test('GST Engine — 28% Exclusive', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 28,
+    amount: 100000, gstRate: 28,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(result.taxableAmount, 100000);
-  assert.strictEqual(result.totalGST, 28000);
-  assert.strictEqual(result.cgst, 14000);
-  assert.strictEqual(result.sgst, 14000);
-  assert.strictEqual(result.total, 128000);
+  assert.strictEqual(result.taxableAmount, '100000.00');
+  assert.strictEqual(result.totalGST, '28000.00');
+  assert.strictEqual(result.cgst, '14000.00');
+  assert.strictEqual(result.sgst, '14000.00');
+  assert.strictEqual(result.total, '128000.00');
 });
 
 test('GST Engine — EXEMPT returns zero GST', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 18,
+    amount: 100000, gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'EXEMPT'
   });
-  assert.strictEqual(result.totalGST, 0);
-  assert.strictEqual(result.cgst, 0);
-  assert.strictEqual(result.sgst, 0);
-  assert.strictEqual(result.igst, 0);
-  assert.strictEqual(result.total, 100000);
+  assert.strictEqual(result.totalGST, '0.00');
+  assert.strictEqual(result.cgst, '0.00');
+  assert.strictEqual(result.sgst, '0.00');
+  assert.strictEqual(result.igst, '0.00');
+  assert.strictEqual(result.total, '100000.00');
 });
 
 test('GST Engine — NIL_RATED returns zero GST', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 18,
+    amount: 100000, gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'NIL_RATED'
   });
-  assert.strictEqual(result.totalGST, 0);
-  assert.strictEqual(result.total, 100000);
+  assert.strictEqual(result.totalGST, '0.00');
+  assert.strictEqual(result.total, '100000.00');
 });
 
 test('GST Engine — NON_GST returns zero GST', () => {
   const result = calculateGST({
-    amountPaise: 100000, gstRate: 18,
+    amount: 100000, gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'NON_GST'
   });
-  assert.strictEqual(result.totalGST, 0);
-  assert.strictEqual(result.total, 100000);
+  assert.strictEqual(result.totalGST, '0.00');
+  assert.strictEqual(result.total, '100000.00');
 });
 
-test('GST Engine — Integer paise outputs', () => {
-  // Odd number that could produce fractional paise
+test('GST Engine — 2-decimal rupee outputs', () => {
+  // Number that could produce complex fractions
   const result = calculateGST({
-    amountPaise: 99999, gstRate: 18,
+    amount: '99999.99', gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.ok(Number.isInteger(result.taxableAmount), 'taxableAmount must be integer');
-  assert.ok(Number.isInteger(result.cgst), 'cgst must be integer');
-  assert.ok(Number.isInteger(result.sgst), 'sgst must be integer');
-  assert.ok(Number.isInteger(result.igst), 'igst must be integer');
-  assert.ok(Number.isInteger(result.totalGST), 'totalGST must be integer');
-  assert.ok(Number.isInteger(result.total), 'total must be integer');
+  assert.ok(/^\d+\.\d{2}$/.test(result.taxableAmount), 'taxableAmount must be 2-decimal string');
+  assert.ok(/^\d+\.\d{2}$/.test(result.cgst), 'cgst must be 2-decimal string');
+  assert.ok(/^\d+\.\d{2}$/.test(result.sgst), 'sgst must be 2-decimal string');
+  assert.ok(/^\d+\.\d{2}$/.test(result.igst), 'igst must be 2-decimal string');
+  assert.ok(/^\d+\.\d{2}$/.test(result.totalGST), 'totalGST must be 2-decimal string');
+  assert.ok(/^\d+\.\d{2}$/.test(result.total), 'total must be 2-decimal string');
   // Verify CGST + SGST = totalGST
-  assert.strictEqual(result.cgst + result.sgst, result.totalGST);
+  assert.strictEqual((Number(result.cgst) + Number(result.sgst)).toFixed(2), result.totalGST);
 });
 
 test('GST Engine — Deterministic rounding', () => {
   // Run same input twice, must produce identical results
   const input = {
-    amountPaise: 33333, gstRate: 18,
+    amount: '33333.33', gstRate: 18,
     pricingMode: 'INCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   };
   const r1 = calculateGST(input);
   const r2 = calculateGST(input);
   assert.deepStrictEqual(r1, r2, 'Same input must produce identical results');
-  assert.ok(Number.isInteger(r1.taxableAmount));
-  assert.ok(Number.isInteger(r1.totalGST));
-  assert.strictEqual(r1.taxableAmount + r1.totalGST, r1.total);
+  assert.ok(/^\d+\.\d{2}$/.test(r1.taxableAmount));
+  assert.ok(/^\d+\.\d{2}$/.test(r1.totalGST));
+  assert.strictEqual((Number(r1.taxableAmount) + Number(r1.totalGST)).toFixed(2), r1.total);
 });
 
 test('GST Engine — No negative tax values', () => {
@@ -183,15 +183,15 @@ test('GST Engine — Invalid rate rejected', () => {
 
 test('GST Engine — Multiple different rates', () => {
   const r5 = calculateGST({
-    amountPaise: 100000, gstRate: 5,
+    amount: 100000, gstRate: 5,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
   const r18 = calculateGST({
-    amountPaise: 100000, gstRate: 18,
+    amount: 100000, gstRate: 18,
     pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE', taxTreatment: 'TAXABLE'
   });
-  assert.strictEqual(r5.totalGST, 5000);
-  assert.strictEqual(r18.totalGST, 18000);
+  assert.strictEqual(r5.totalGST, '5000.00');
+  assert.strictEqual(r18.totalGST, '18000.00');
   assert.notStrictEqual(r5.totalGST, r18.totalGST);
 });
 
@@ -387,29 +387,29 @@ test('Phase 8 — HSN/SAC + GST Config API', async (t) => {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenA}` },
       body: JSON.stringify({
-        amountPaise: 100000, gstRate: 18,
+        amount: 100000, gstRate: 18,
         pricingMode: 'EXCLUSIVE', supplyType: 'INTRA_STATE'
       })
     });
     const calcData = await calcRes.json();
     assert.strictEqual(calcRes.status, 200);
-    assert.strictEqual(calcData.data.calculation.taxableAmount, 100000);
-    assert.strictEqual(calcData.data.calculation.cgst, 9000);
-    assert.strictEqual(calcData.data.calculation.sgst, 9000);
-    assert.strictEqual(calcData.data.calculation.total, 118000);
+    assert.strictEqual(calcData.data.calculation.taxableAmount, '100000.00');
+    assert.strictEqual(calcData.data.calculation.cgst, '9000.00');
+    assert.strictEqual(calcData.data.calculation.sgst, '9000.00');
+    assert.strictEqual(calcData.data.calculation.total, '118000.00');
 
     // Inclusive 18% intra-state via API
     const calcInclRes = await fetch(`${BASE}/tax-config/calculate`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${tokenA}` },
       body: JSON.stringify({
-        amountPaise: 118000, gstRate: 18,
+        amount: 118000, gstRate: 18,
         pricingMode: 'INCLUSIVE', supplyType: 'INTRA_STATE'
       })
     });
     const calcInclData = await calcInclRes.json();
-    assert.strictEqual(calcInclData.data.calculation.taxableAmount, 100000);
-    assert.strictEqual(calcInclData.data.calculation.totalGST, 18000);
+    assert.strictEqual(calcInclData.data.calculation.taxableAmount, '100000.00');
+    assert.strictEqual(calcInclData.data.calculation.totalGST, '18000.00');
 
     // CLEANUP
     const TaxConfig = require('../src/models/TaxConfig');
@@ -430,7 +430,7 @@ test('Phase 8 — HSN/SAC + GST Config API', async (t) => {
 // ============================================================
 test('Phase 8 — Seed Script Idempotency and Business Isolation', async (t) => {
   await mongoose.connect(env.mongoUri);
-  
+
   const TaxConfig = require('../src/models/TaxConfig');
   const { seedTaxConfigs, DEMO_TAX_CONFIGS } = require('../scripts/seed-tax-config');
   const businessId1 = new mongoose.Types.ObjectId();
@@ -445,7 +445,7 @@ test('Phase 8 — Seed Script Idempotency and Business Isolation', async (t) => 
     // Verify HSN/SAC counts and properties
     const configs1 = await TaxConfig.find({ businessId: businessId1 });
     assert.strictEqual(configs1.length, DEMO_TAX_CONFIGS.length);
-    
+
     // Check multiple rates exist
     const rates = configs1.map(c => c.gstRate);
     assert.ok(rates.includes(0));
@@ -453,7 +453,7 @@ test('Phase 8 — Seed Script Idempotency and Business Isolation', async (t) => 
     assert.ok(rates.includes(12));
     assert.ok(rates.includes(18));
     assert.ok(rates.includes(28));
-    
+
     // Check HSN and SAC both exist
     const hasHSN = configs1.some(c => c.classificationType === 'HSN');
     const hasSAC = configs1.some(c => c.classificationType === 'SAC');
@@ -468,7 +468,7 @@ test('Phase 8 — Seed Script Idempotency and Business Isolation', async (t) => 
     // 3. Business isolation: Seed for another business
     const run3 = await seedTaxConfigs(businessId2);
     assert.strictEqual(run3.created, DEMO_TAX_CONFIGS.length, 'Should create new records for new businessId');
-    
+
     // Verify business isolation
     const totalConfigs = await TaxConfig.countDocuments({ businessId: { $in: [businessId1, businessId2] } });
     assert.strictEqual(totalConfigs, DEMO_TAX_CONFIGS.length * 2, 'Records must be isolated per business');

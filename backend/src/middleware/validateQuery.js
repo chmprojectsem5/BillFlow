@@ -9,11 +9,13 @@ const validateQuery = (schema) => {
         path: err.path.join('.'),
         message: err.message
       }));
-      
+
+      const details = errors.map(err => (err.path ? `${err.path}: ${err.message}` : err.message)).join(', ');
+
       res.status(400).json({
         success: false,
         status: 'fail',
-        message: 'Validation failed',
+        message: details ? `Validation failed: ${details}` : 'Validation failed',
         errors
       });
     }

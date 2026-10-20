@@ -49,7 +49,8 @@ const setupData = async (token) => {
     body: JSON.stringify({
       name: 'Test Customer',
       customerType: 'Business',
-      state: 'Maharashtra'
+      state: 'Maharashtra',
+      billingAddress: '123 MG Road, Mumbai'
     })
   });
   const custData = await custRes.json();
@@ -107,7 +108,7 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     await mongoose.connect(env.mongoUri);
     // Setup indexes to ensure idempotency uniqueness acts correctly
     await mongoose.connection.collection('payments').createIndex({ businessId: 1, idempotencyKey: 1 }, { unique: true });
-    
+
     await new Promise(resolve => {
       server = app.listen(TEST_PORT, resolve);
     });
@@ -175,12 +176,12 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
 
   const paymentDate1 = new Date().toISOString();
 
-  await t.test('Phase 20 - API Boundary Validation - Reject floating point amount', async () => {
+  await t.test('Phase 20 - API Boundary Validation - Reject excess precision amount', async () => {
     const res = await fetch(`${BASE}/invoices/${invoice1}/payments`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', 'Authorization': `Bearer ${token1}`, 'X-Idempotency-Key': `float-${uid}` },
       body: JSON.stringify({
-        amount: 50000.50, // Float amount
+        amount: 50000.555, // Excess decimal places (>2)
         paymentDate: new Date().toISOString(),
         method: 'Bank Transfer'
       })
@@ -207,10 +208,10 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     assert.strictEqual(res.status, 201);
     const data = await res.json();
     assert.strictEqual(data.data.invoice.status, 'Partially Paid');
-    assert.strictEqual(data.data.invoice.paymentStatus.paidAmount, 100000);
-    assert.strictEqual(data.data.invoice.paymentStatus.balanceDue, 136000); // 236000 - 100000
+    assert.strictEqual(data.data.invoice.paymentStatus.paidAmount, '100000.00');
+    assert.strictEqual(data.data.invoice.paymentStatus.balanceDue, '136000.00'); // 236000 - 100000
     // Immutability
-    assert.strictEqual(data.data.invoice.summary.grandTotal, 236000);
+    assert.strictEqual(data.data.invoice.summary.grandTotal, '236000.00');
   });
 
   await t.test('Idempotency Case A (same payload) returns 200 OK', async () => {
@@ -225,7 +226,7 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     });
     assert.strictEqual(res.status, 200);
     const data = await res.json();
-    assert.strictEqual(data.data.payment.amount, 100000);
+    assert.strictEqual(data.data.payment.amount, '100000.00');
   });
 
   await t.test('Idempotency Case B (different payload) returns 409 Conflict', async () => {
@@ -266,7 +267,7 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     const results = await Promise.all(promises);
     let successes = 0;
     let conflictsOrErrors = 0;
-    
+
     results.forEach(r => {
       if (r.status === 201) successes++;
       else {
@@ -284,8 +285,8 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
       headers: { 'Authorization': `Bearer ${token1}` }
     });
     const { invoice } = (await res.json()).data;
-    assert.strictEqual(invoice.paymentStatus.paidAmount, 200000);
-    assert.strictEqual(invoice.paymentStatus.balanceDue, 36000);
+    assert.strictEqual(invoice.paymentStatus.paidAmount, '200000.00');
+    assert.strictEqual(invoice.paymentStatus.balanceDue, '36000.00');
   });
 
   await t.test('Final Payment updates to Paid', async () => {
@@ -301,7 +302,7 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     assert.strictEqual(res.status, 201);
     const data = await res.json();
     assert.strictEqual(data.data.invoice.status, 'Paid');
-    assert.strictEqual(data.data.invoice.paymentStatus.balanceDue, 0);
+    assert.strictEqual(data.data.invoice.paymentStatus.balanceDue, '0.00');
   });
 
   await t.test('Cannot pay a Paid invoice', async () => {
@@ -329,4 +330,3 @@ test('Phase 13 — Payment Tracking (Transactions & Concurrency)', async (t) => 
     assert.strictEqual(res.status, 404); // Should not find invoice
   });
 });
-

@@ -56,7 +56,7 @@ test('Phase 11 — PDF Generation', async (t) => {
     const itemRes = await fetch(`${BASE}/items`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${userA.token}` },
-      body: JSON.stringify({ name: 'PDF Service', type: 'Service', unitPrice: 50000, hsnSac: '9999' })
+      body: JSON.stringify({ name: 'PDF Service', type: 'Service', unitPrice: 500, hsnSac: '9999' })
     });
     const itemData = await itemRes.json();
     if (!itemRes.ok) throw new Error('Item failed: ' + JSON.stringify(itemData));
@@ -105,11 +105,11 @@ test('Phase 11 — PDF Generation', async (t) => {
       assert.strictEqual(res.status, 200);
       assert.strictEqual(res.headers.get('content-type'), 'application/pdf');
       assert.ok(res.headers.get('content-disposition').includes('attachment; filename="Invoice-'));
-      
+
       const arrayBuffer = await res.arrayBuffer();
       const pdfBuffer = Buffer.alloc(arrayBuffer.byteLength);
       Buffer.from(arrayBuffer).copy(pdfBuffer);
-      
+
       assert.ok(pdfBuffer.length > 100);
       assert.strictEqual(pdfBuffer.toString('utf8', 0, 5), '%PDF-');
     });
@@ -139,17 +139,17 @@ test('Phase 11 — PDF Generation', async (t) => {
           await new Promise(r => setTimeout(r, 500));
         }
       }
-      
+
       assert.ok(pdfData.numpages > 1, 'PDF should have more than 1 page');
-      
+
       const text = pdfData.text;
       assert.ok(text.includes('pdf_a Business'));
       assert.ok(text.includes('PDF Customer'));
       assert.ok(text.includes('27AAAAA0000A1Z5'));
       assert.ok(text.includes('PDF Service'));
-      assert.ok(text.includes('9999')); 
+      assert.ok(text.includes('9999'));
       // Qty 1 * 500 = 500 base, +18% GST = 590.00 per item
-      assert.ok(text.includes('500.00')); 
+      assert.ok(text.includes('500.00'));
       assert.ok(text.includes('590.00'));
       // Total 60 items * 590 = 35400.00
       assert.ok(text.includes('35,400.00'));

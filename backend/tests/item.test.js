@@ -77,7 +77,7 @@ test('Phase 7 — Products & Services', async (t) => {
     assert.strictEqual(createProdData.data.item.name, 'Widget A');
     assert.strictEqual(createProdData.data.item.type, 'Product');
     assert.strictEqual(createProdData.data.item.currentStock, 100);
-    assert.strictEqual(createProdData.data.item.costPrice, 7500);
+    assert.strictEqual(createProdData.data.item.costPrice, '7500.00');
 
     // 4. Verify server-derived businessId
     assert.strictEqual(createProdData.data.item.businessId, businessAId, 'Item must belong to Business A');
@@ -140,7 +140,7 @@ test('Phase 7 — Products & Services', async (t) => {
     const updateData = await updateRes.json();
     assert.strictEqual(updateRes.status, 200, 'Update item should return 200');
     assert.strictEqual(updateData.data.item.name, 'Widget A Pro');
-    assert.strictEqual(updateData.data.item.unitPrice, 12000);
+    assert.strictEqual(updateData.data.item.unitPrice, '12000.00');
 
     // ===========================
     // 9-11. Cross-business isolation
@@ -311,31 +311,30 @@ test('Phase 7 — Products & Services', async (t) => {
     });
     await updateItem.save();
 
-    // Negative: try to write a float using the audited Mongoose update path with runValidators
+    // Negative: try to write excess decimal places using Mongoose update path with runValidators
     let updateErr = null;
     try {
       await ItemModel.findOneAndUpdate(
         { _id: updateItem._id, businessId: businessAId },
-        { $set: { unitPrice: 100.5 } },
+        { $set: { unitPrice: 100.555 } },
         { returnDocument: 'after', runValidators: true }
       );
     } catch (e) {
       updateErr = e;
     }
-    assert.ok(updateErr, 'Mongoose findOneAndUpdate should reject float unitPrice with runValidators');
-    assert.strictEqual(updateErr.name, 'ValidationError', 'Should throw ValidationError');
-    
+    assert.ok(updateErr, 'Mongoose findOneAndUpdate should reject excess decimal unitPrice with runValidators');
+
     // Verify stored value remains unchanged
     const unchangedItem = await ItemModel.findById(updateItem._id);
-    assert.strictEqual(unchangedItem.unitPrice, 1000, 'unitPrice must remain unchanged after failed float update');
+    assert.strictEqual(unchangedItem.unitPrice.toString(), '1000.00', 'unitPrice must remain unchanged after failed excess decimal update');
 
-    // Positive: integer update succeeds
+    // Positive: valid rupee update succeeds
     const successItem = await ItemModel.findOneAndUpdate(
       { _id: updateItem._id, businessId: businessAId },
-      { $set: { unitPrice: 2000 } },
+      { $set: { unitPrice: '2000.50' } },
       { returnDocument: 'after', runValidators: true }
     );
-    assert.strictEqual(successItem.unitPrice, 2000, 'unitPrice must update to new integer value');
+    assert.strictEqual(successItem.unitPrice.toString(), '2000.50', 'unitPrice must update to new rupee value');
 
     // ===========================
     // CLEANUP

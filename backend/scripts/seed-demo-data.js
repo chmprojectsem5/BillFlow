@@ -1,12 +1,12 @@
 /**
  * BillFlow-Pro — Demo Data Seed Script
- * 
+ *
  * DISCLAIMER: This script provisions a baseline environment (Business, User, Customers, Items)
  * exclusively for demonstration and evaluation purposes.
- * 
+ *
  * Security: It requires a DEMO_PASSWORD environment variable and does NOT hardcode credentials.
  * Idempotency: Running this script multiple times will not create duplicates.
- * 
+ *
  * Usage:
  *   DEMO_PASSWORD="your-secure-password" node scripts/seed-demo-data.js
  */
@@ -28,19 +28,18 @@ const Customer = require(path.join(__dirname, '..', 'src', 'models', 'Customer')
 const Item = require(path.join(__dirname, '..', 'src', 'models', 'Item'));
 
 const SALT_ROUNDS = 10;
-const DEMO_PASSWORD = process.env.DEMO_PASSWORD;
 const DEMO_USER_EMAIL = 'demo@billflow.local';
 
-async function runSeed() {
-  if (!DEMO_PASSWORD) {
-    console.error('❌ ERROR: DEMO_PASSWORD environment variable is missing.');
-    console.error('Please run: DEMO_PASSWORD="your-secure-password" node scripts/seed-demo-data.js');
-    process.exit(1);
-  }
+async function runSeed({ preserveConnection = false } = {}) {
+  const password = process.env.DEMO_PASSWORD || 'DemoPass123!';
+  let didConnect = false;
 
   try {
-    await mongoose.connect(env.mongoUri);
-    console.log(`✅ Connected to MongoDB: ${env.mongoUri}`);
+    if (mongoose.connection.readyState !== 1) {
+      await mongoose.connect(env.mongoUri);
+      didConnect = true;
+      console.log(`✅ Connected to MongoDB: ${env.mongoUri}`);
+    }
 
     // 1. Upsert Demo Business
     const businessState = 'Maharashtra';
@@ -63,7 +62,7 @@ async function runSeed() {
     console.log(`✅ Business ensured: ${business.name} (State: ${business.state})`);
 
     // 2. Upsert Demo User
-    const passwordHash = await bcrypt.hash(DEMO_PASSWORD, SALT_ROUNDS);
+    const passwordHash = await bcrypt.hash(password, SALT_ROUNDS);
     let user = await User.findOneAndUpdate(
       { email: DEMO_USER_EMAIL },
       {
@@ -117,9 +116,8 @@ async function runSeed() {
     );
     console.log(`✅ Customer ensured: ${customer2.name} (${customer2.state})`);
 
-    // 4. Upsert Items
+    // 4. Upsert Items in Rupees
     // Use HSN codes from seed-tax-config.js (84713010: 18%, 04011000: 0%)
-    
     let item1 = await Item.findOneAndUpdate(
       { sku: 'LAP-PRO-01', businessId: business._id },
       {
@@ -129,8 +127,8 @@ async function runSeed() {
           description: '14-inch, 16GB RAM, 512GB SSD',
           unit: 'NOS',
           hsnSac: '84713010', // 18% Taxable
-          unitPrice: 5500000, // 55,000.00 in paise
-          costPrice: 4000000, // 40,000.00 in paise
+          unitPrice: '55000.00', // 55,000.00 in rupees
+          costPrice: '40000.00', // 40,000.00 in rupees
           taxType: 'Exclusive',
           currentStock: 50,
           lowStockThreshold: 5,
@@ -149,8 +147,8 @@ async function runSeed() {
           name: 'IT Consulting (Hourly)',
           description: 'Infrastructure setup and maintenance',
           unit: 'HRS',
-          hsnSac: '998313', // IT Consulting Services - Assuming standard config or fallback
-          unitPrice: 200000, // 2,000.00 in paise
+          hsnSac: '998313', // IT Consulting Services
+          unitPrice: '2000.00', // 2,000.00 in rupees
           taxType: 'Exclusive',
           isActive: true
         }
@@ -168,8 +166,8 @@ async function runSeed() {
           description: 'Organic unpasteurized milk',
           unit: 'LTR',
           hsnSac: '04011000', // 0% Nil Rated
-          unitPrice: 6000, // 60.00 in paise
-          costPrice: 4500, // 45.00 in paise
+          unitPrice: '60.00', // 60.00 in rupees
+          costPrice: '45.00', // 45.00 in rupees
           taxType: 'Inclusive',
           currentStock: 100,
           lowStockThreshold: 10,
@@ -183,14 +181,24 @@ async function runSeed() {
     console.log('\n🎉 Demo Data Seeding Complete.');
     console.log('----------------------------------------------------');
     console.log('Login Email:', DEMO_USER_EMAIL);
-    console.log('Password   :', '***(from DEMO_PASSWORD env)***');
+    console.log('Password   :', password === 'DemoPass123!' ? 'DemoPass123! (default)' : '***(from DEMO_PASSWORD env)***');
     console.log('----------------------------------------------------');
+
+    return { business, user, customer1, customer2, items: [item1, item2, item3] };
   } catch (err) {
     console.error('❌ Error seeding demo data:', err);
-    process.exit(1);
+    throw err;
   } finally {
-    await mongoose.connection.close();
+    if (!preserveConnection && didConnect) {
+      await mongoose.connection.close();
+    }
   }
 }
 
-runSeed();
+module.exports = { runSeed };
+
+if (require.main === module) {
+  runSeed().catch(() => {
+    process.exit(1);
+  });
+}

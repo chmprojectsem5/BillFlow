@@ -22,8 +22,8 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
 
   before(async () => {
     await mongoose.connect(env.mongoUri);
-    await User.deleteMany({});
-    await Business.deleteMany({});
+    await User.deleteMany({ email: { $in: ['sec@example.com', 'other@example.com'] } });
+    await Business.deleteMany({ name: { $in: ['Security Test Business', 'Other Business'] } });
 
     const business = await Business.create({ name: 'Security Test Business' });
     businessId = business._id.toString();
@@ -60,6 +60,10 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
   });
 
   after(async () => {
+    await User.deleteMany({ email: { $in: ['sec@example.com', 'other@example.com'] } });
+    if (businessId || otherBusinessId) {
+      await Business.deleteMany({ _id: { $in: [businessId, otherBusinessId].filter(Boolean) } });
+    }
     await mongoose.connection.close();
   });
 
@@ -111,7 +115,7 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
     it('simulates the frontend axios interceptor handling a 401 and redirecting to login', async () => {
       // 1. Create a legacy token without an issuer
       const legacyToken = jwt.sign({ userId, businessId }, env.jwtSecret, { expiresIn: '1h' });
-      
+
       // 2. Setup mock frontend state mirroring axios.js
       const mockLocalStorage = {
         token: legacyToken,
@@ -125,9 +129,9 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
         const currentToken = mockLocalStorage.getItem('token');
         const req = request(app).get(url);
         if (currentToken) req.set('Authorization', `Bearer ${currentToken}`);
-        
+
         const res = await req;
-        
+
         // Response interceptor exactly as in frontend/src/api/axios.js
         if (res.status === 401) {
           mockLocalStorage.removeItem('token');
@@ -144,7 +148,7 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
       assert.strictEqual(res1.status, 401);
       assert.strictEqual(mockLocalStorage.getItem('token'), undefined, 'Token should be removed');
       assert.strictEqual(mockWindow.location.pathname, '/login', 'Should redirect to /login');
-      
+
       // 5. Re-authenticate (simulate user logging in after redirect)
       const validToken = jwt.sign(
         { userId, businessId },
@@ -152,7 +156,7 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
         { expiresIn: '1h', issuer: 'billflow-pro' }
       );
       mockLocalStorage.token = validToken;
-      
+
       // 6. Verify subsequent request succeeds with new token containing issuer
       const res2 = await simulateAxiosCall('/api/v1/auth/me');
       assert.strictEqual(res2.status, 200);
@@ -243,7 +247,7 @@ describe('Phase 19 Security Audit & Remediation Tests', () => {
 
   describe('8.12 Payment Security Tests', () => {
     it('should reject payment without idempotency key', async () => {
-      // It's covered by zod .strict() if payment validator was strict? 
+      // It's covered by zod .strict() if payment validator was strict?
       // Idempotency key is in headers, let's just test a basic validation error.
       const res = await request(app).post('/api/v1/invoices/'+new mongoose.Types.ObjectId()+'/payments').set('Authorization', `Bearer ${token}`).send({ amount: 100 });
       assert.strictEqual(res.status, 400); // Will reject because it expects specific fields

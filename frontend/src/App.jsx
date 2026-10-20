@@ -33,6 +33,7 @@ function App() {
             {/* Application Shell Pages */}
             <Route path="/dashboard" element={<ProtectedRoute><AppLayout><DashboardPage /></AppLayout></ProtectedRoute>} />
             <Route path="/business-profile" element={<ProtectedRoute><AppLayout><BusinessProfilePage /></AppLayout></ProtectedRoute>} />
+            <Route path="/profile" element={<Navigate to="/business-profile" replace />} />
             <Route path="/customers" element={<ProtectedRoute><AppLayout><CustomersPage /></AppLayout></ProtectedRoute>} />
             <Route path="/items" element={<ProtectedRoute><AppLayout><ItemsPage /></AppLayout></ProtectedRoute>} />
             <Route path="/tax-config" element={<ProtectedRoute><AppLayout><TaxConfigPage /></AppLayout></ProtectedRoute>} />

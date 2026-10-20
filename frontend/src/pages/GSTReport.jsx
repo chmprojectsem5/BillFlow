@@ -1,13 +1,15 @@
 import React, { useState, useEffect } from 'react';
-import { Link } from 'react-router-dom';
+import { useNavigate } from 'react-router-dom';
 import reportApi from '../services/reportApi';
 import { formatCurrency } from '../utils/formatters';
 import Button from '../components/ui/Button';
+import Badge from '../components/ui/Badge';
 import Input from '../components/ui/Input';
 import { Card } from '../components/ui/Card';
 import { Table, Thead, Tbody, Tr, Th, Td } from '../components/ui/Table';
 
 const GSTReport = () => {
+  const navigate = useNavigate();
   const getInitialDates = () => {
     const today = new Date();
     const firstDay = new Date(today.getFullYear(), today.getMonth(), 1);
@@ -27,7 +29,7 @@ const GSTReport = () => {
   const [hsnWise, setHsnWise] = useState(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
-  
+
   const [hsnPage, setHsnPage] = useState(1);
   const hsnLimit = 10;
 
@@ -35,7 +37,7 @@ const GSTReport = () => {
     try {
       setLoading(true);
       setError('');
-      
+
       const [sumRes, rateRes, hsnRes] = await Promise.all([
         reportApi.getGSTSummary(dates.startDate, dates.endDate),
         reportApi.getGSTRateWise(dates.startDate, dates.endDate),
@@ -46,7 +48,7 @@ const GSTReport = () => {
       setRateWise(rateRes);
       setHsnWise(hsnRes);
       setHsnPage(page);
-      
+
     } catch (err) {
       setError(err.response?.data?.message || err.message || 'Failed to generate report');
     } finally {
@@ -66,42 +68,65 @@ const GSTReport = () => {
 
   return (
     <div className="pb-12">
-      <div className="mb-6">
-        <h1 className="text-2xl font-bold text-gray-900">GST Report</h1>
+      <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+        <div>
+          <h1 className="text-2xl font-bold tracking-tight text-slate-900">GST Compliance & Filing Report</h1>
+          <p className="text-sm text-slate-500 mt-1">Tax liability summary, tax rate breakdowns, and HSN/SAC audit trail for GSTR-1 & GSTR-3B.</p>
+        </div>
+        <Button
+          variant="secondary"
+          size="sm"
+          onClick={() => navigate('/reports')}
+          leftIcon={
+            <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M10 19l-7-7m0 0l7-7m-7 7h18" />
+            </svg>
+          }
+        >
+          Back to Reports
+        </Button>
       </div>
 
-      <div className="mb-8">
-        <Link to="/reports" className="text-indigo-600 hover:text-indigo-900 font-medium">&larr; Back to Reports</Link>
-      </div>
-
-      <Card className="p-6 mb-8">
-        <form onSubmit={handleGenerate} className="flex flex-wrap items-end gap-4">
-          <div className="flex-1 min-w-[200px]">
+      <Card className="p-5 sm:p-6 mb-8 border border-slate-200/90 shadow-xs">
+        <form onSubmit={handleGenerate} className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-12 gap-3.5 items-end">
+          <div className="lg:col-span-5">
             <Input
-              label="Start Date"
+              label="Filing Period Start"
               type="date"
               required
               value={dates.startDate}
               onChange={(e) => setDates({ ...dates, startDate: e.target.value })}
             />
           </div>
-          <div className="flex-1 min-w-[200px]">
+          <div className="lg:col-span-5">
             <Input
-              label="End Date"
+              label="Filing Period End"
               type="date"
               required
               value={dates.endDate}
               onChange={(e) => setDates({ ...dates, endDate: e.target.value })}
             />
           </div>
-          <div className="w-full sm:w-auto mt-2 sm:mt-0">
-            <Button type="submit" disabled={loading} className="w-full">
-              {loading ? 'Generating...' : 'Generate Report'}
+          <div className="lg:col-span-2">
+            <Button
+              type="submit"
+              disabled={loading}
+              className="w-full justify-center"
+              leftIcon={
+                <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
+                </svg>
+              }
+            >
+              {loading ? 'Generating...' : 'Run GST Report'}
             </Button>
           </div>
         </form>
         {error && (
-          <div className="mt-4 bg-red-50 border border-red-200 text-red-700 p-4 rounded-md text-sm">
+          <div className="mt-4 bg-rose-50 border border-rose-200/80 text-rose-700 p-3.5 rounded-xl text-xs font-medium flex items-center gap-2">
+            <svg className="w-4 h-4 text-rose-500 shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M12 8v4m0 4h.01M21 12a9 9 0 11-18 0 9 9 0 0114 0z" />
+            </svg>
             {error}
           </div>
         )}
@@ -109,42 +134,58 @@ const GSTReport = () => {
 
       {summary && !loading && (
         <div className="space-y-8">
-          {/* GST Summary */}
-          <Card>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Total Tax Summary</h3>
+          {/* GST Summary KPI Cards */}
+          <div>
+            <h3 className="text-base font-bold text-slate-900 mb-3">Total Tax Liability Summary</h3>
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">Central Tax (CGST)</span>
+                <span className="text-2xl font-bold text-slate-900 mt-1 block tabular-nums">
+                  {formatCurrency(summary.cgstTotal)}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-1 block">Intra-state center portion</span>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">State Tax (SGST)</span>
+                <span className="text-2xl font-bold text-slate-900 mt-1 block tabular-nums">
+                  {formatCurrency(summary.sgstTotal)}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-1 block">Intra-state state portion</span>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-slate-200/90 shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-slate-500 block">Integrated Tax (IGST)</span>
+                <span className="text-2xl font-bold text-slate-900 mt-1 block tabular-nums">
+                  {formatCurrency(summary.igstTotal)}
+                </span>
+                <span className="text-[11px] text-slate-400 mt-1 block">Inter-state integrated levy</span>
+              </div>
+
+              <div className="bg-white p-5 rounded-2xl border border-indigo-200/90 bg-indigo-50/20 shadow-xs">
+                <span className="text-xs font-semibold uppercase tracking-wider text-indigo-700 block">Total Combined GST</span>
+                <span className="text-2xl font-bold text-indigo-700 mt-1 block tabular-nums">
+                  {formatCurrency(summary.totalTax)}
+                </span>
+                <span className="text-[11px] text-indigo-600/70 mt-1 block">Aggregate tax payable</span>
+              </div>
             </div>
-            <div className="grid grid-cols-1 md:grid-cols-4 divide-y md:divide-y-0 md:divide-x divide-gray-200">
-              <div className="p-6 text-center">
-                <p className="text-sm font-medium text-gray-500">CGST</p>
-                <p className="mt-2 text-2xl font-bold text-gray-900">{formatCurrency(summary.cgstTotal)}</p>
-              </div>
-              <div className="p-6 text-center">
-                <p className="text-sm font-medium text-gray-500">SGST</p>
-                <p className="mt-2 text-2xl font-bold text-gray-900">{formatCurrency(summary.sgstTotal)}</p>
-              </div>
-              <div className="p-6 text-center">
-                <p className="text-sm font-medium text-gray-500">IGST</p>
-                <p className="mt-2 text-2xl font-bold text-gray-900">{formatCurrency(summary.igstTotal)}</p>
-              </div>
-              <div className="p-6 text-center bg-indigo-50">
-                <p className="text-sm font-bold text-indigo-800">Total Tax</p>
-                <p className="mt-2 text-2xl font-bold text-indigo-900">{formatCurrency(summary.totalTax)}</p>
-              </div>
-            </div>
-          </Card>
+          </div>
 
           {/* Rate Wise */}
-          <Card>
-            <div className="px-6 py-4 border-b border-gray-200">
-              <h3 className="text-lg font-medium text-gray-900">Rate-wise Breakdown</h3>
+          <div>
+            <div className="flex items-center justify-between mb-3">
+              <div>
+                <h3 className="text-base font-bold text-slate-900">Rate-wise Slabs Breakdown</h3>
+                <p className="text-xs text-slate-500">Taxable turnover and tax collected across statutory tax slabs</p>
+              </div>
             </div>
             <Table>
               <Thead>
                 <Tr>
                   <Th>GST Rate</Th>
                   <Th>Tax Treatment</Th>
-                  <Th className="text-right">Taxable Value</Th>
+                  <Th className="text-right">Taxable Turnover</Th>
                   <Th className="text-right">CGST</Th>
                   <Th className="text-right">SGST</Th>
                   <Th className="text-right">IGST</Th>
@@ -155,36 +196,39 @@ const GSTReport = () => {
                 {rateWise && rateWise.length > 0 ? (
                   rateWise.map((row, idx) => (
                     <Tr key={idx}>
-                      <Td className="font-medium">{row.gstRate}%</Td>
-                      <Td className="text-gray-500">{row.taxTreatment}</Td>
-                      <Td className="text-right font-medium">{formatCurrency(row.taxableValue)}</Td>
-                      <Td className="text-right text-gray-500">{formatCurrency(row.cgst)}</Td>
-                      <Td className="text-right text-gray-500">{formatCurrency(row.sgst)}</Td>
-                      <Td className="text-right text-gray-500">{formatCurrency(row.igst)}</Td>
-                      <Td className="text-right font-bold text-indigo-700">{formatCurrency(row.taxAmount)}</Td>
+                      <Td className="font-bold text-slate-900">{row.gstRate}%</Td>
+                      <Td className="text-xs text-slate-600 font-medium">{row.taxTreatment}</Td>
+                      <Td className="text-right font-semibold text-slate-900 tabular-nums">{formatCurrency(row.taxableValue)}</Td>
+                      <Td className="text-right text-xs text-slate-600 tabular-nums">{formatCurrency(row.cgst)}</Td>
+                      <Td className="text-right text-xs text-slate-600 tabular-nums">{formatCurrency(row.sgst)}</Td>
+                      <Td className="text-right text-xs text-slate-600 tabular-nums">{formatCurrency(row.igst)}</Td>
+                      <Td className="text-right font-bold text-indigo-700 tabular-nums">{formatCurrency(row.taxAmount)}</Td>
                     </Tr>
                   ))
                 ) : (
                   <Tr>
-                    <Td colSpan="7" className="text-center text-gray-500 py-6">No data available for this period.</Td>
+                    <Td colSpan="7" className="text-center text-slate-500 py-8 text-xs">No transactions recorded for this period.</Td>
                   </Tr>
                 )}
               </Tbody>
             </Table>
-          </Card>
+          </div>
 
           {/* HSN Wise */}
           {hsnWise && (
-            <Card>
-              <div className="px-6 py-4 border-b border-gray-200">
-                <h3 className="text-lg font-medium text-gray-900">HSN/SAC-wise Summary</h3>
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <div>
+                  <h3 className="text-base font-bold text-slate-900">HSN / SAC Statutory Summary (Table 12)</h3>
+                  <p className="text-xs text-slate-500">Classification-wise quantity and tax breakdown for GSTR-1 Table 12</p>
+                </div>
               </div>
               <Table>
                 <Thead>
                   <Tr>
                     <Th>Type</Th>
-                    <Th>HSN/SAC Code</Th>
-                    <Th className="text-right">Qty Sold</Th>
+                    <Th>HSN / SAC Code</Th>
+                    <Th className="text-right">Total Quantity</Th>
                     <Th className="text-right">Taxable Value</Th>
                     <Th className="text-right">CGST</Th>
                     <Th className="text-right">SGST</Th>
@@ -196,28 +240,36 @@ const GSTReport = () => {
                   {hsnWise.data && hsnWise.data.length > 0 ? (
                     hsnWise.data.map((row, idx) => (
                       <Tr key={idx}>
-                        <Td className="text-gray-500">{row.classificationType}</Td>
-                        <Td className="font-medium">{row.hsnSac}</Td>
-                        <Td className="text-right text-gray-500">{row.quantity}</Td>
-                        <Td className="text-right font-medium">{formatCurrency(row.taxableValue)}</Td>
-                        <Td className="text-right text-gray-500">{formatCurrency(row.cgst)}</Td>
-                        <Td className="text-right text-gray-500">{formatCurrency(row.sgst)}</Td>
-                        <Td className="text-right text-gray-500">{formatCurrency(row.igst)}</Td>
-                        <Td className="text-right font-bold text-indigo-700">{formatCurrency(row.taxAmount)}</Td>
+                        <Td>
+                          <Badge variant={row.classificationType === 'HSN' ? 'info' : 'purple'}>
+                            {row.classificationType}
+                          </Badge>
+                        </Td>
+                        <Td>
+                          <span className="inline-flex items-center px-2 py-0.5 rounded text-xs font-mono font-medium bg-indigo-50 text-indigo-700 border border-indigo-100">
+                            {row.hsnSac}
+                          </span>
+                        </Td>
+                        <Td className="text-right text-xs font-semibold text-slate-900 tabular-nums">{row.quantity}</Td>
+                        <Td className="text-right font-semibold text-slate-900 tabular-nums">{formatCurrency(row.taxableValue)}</Td>
+                        <Td className="text-right text-xs text-slate-600 tabular-nums">{formatCurrency(row.cgst)}</Td>
+                        <Td className="text-right text-xs text-slate-600 tabular-nums">{formatCurrency(row.sgst)}</Td>
+                        <Td className="text-right text-xs text-slate-600 tabular-nums">{formatCurrency(row.igst)}</Td>
+                        <Td className="text-right font-bold text-indigo-700 tabular-nums">{formatCurrency(row.taxAmount)}</Td>
                       </Tr>
                     ))
                   ) : (
                     <Tr>
-                      <Td colSpan="8" className="text-center text-gray-500 py-6">No data available for this period.</Td>
+                      <Td colSpan="8" className="text-center text-slate-500 py-8 text-xs">No HSN data found for this period.</Td>
                     </Tr>
                   )}
                 </Tbody>
               </Table>
               {/* Pagination */}
               {hsnWise.pagination && hsnWise.pagination.totalPages > 1 && (
-                <div className="px-6 py-4 border-t border-gray-200 flex items-center justify-between">
-                  <span className="text-sm text-gray-700">
-                    Showing page <span className="font-medium">{hsnPage}</span> of <span className="font-medium">{hsnWise.pagination.totalPages}</span>
+                <div className="flex flex-col sm:flex-row justify-between items-center mt-4 gap-3 pt-2">
+                  <span className="text-xs font-medium text-slate-500">
+                    Showing page <span className="font-semibold text-slate-900">{hsnPage}</span> of <span className="font-semibold text-slate-900">{hsnWise.pagination.totalPages}</span>
                   </span>
                   <div className="flex gap-2">
                     <Button
@@ -239,7 +291,7 @@ const GSTReport = () => {
                   </div>
                 </div>
               )}
-            </Card>
+            </div>
           )}
         </div>
       )}

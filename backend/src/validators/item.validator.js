@@ -1,4 +1,41 @@
 const { z } = require('zod');
+const Decimal = require('decimal.js');
+const Money = require('../utils/money');
+
+const MAX_MONETARY_AMOUNT = new Decimal('999999999');
+
+const monetaryInput = (fieldName, isOptional = false) => {
+  return z.union([z.number(), z.string()], {
+    required_error: `${fieldName} is required`,
+    invalid_type_error: `${fieldName} must be a number or string`
+  })
+    .refine(val => {
+      if (val === null || val === undefined || val === '') return isOptional;
+      const str = String(val).trim();
+      if (!/^\d+(\.\d{1,2})?$/.test(str)) return false;
+      return new Decimal(str).lte(MAX_MONETARY_AMOUNT);
+    }, { message: `${fieldName} must be a valid non-negative monetary amount with at most 2 decimal places and at most 999999999` })
+    .transform(val => {
+      if (val === null || val === undefined || val === '') return isOptional ? null : undefined;
+      return Money.parseInput(val, { isOptional, fieldName });
+    });
+};
+
+const optionalMonetaryInput = (fieldName) => {
+  return z.union([z.number(), z.string()])
+    .refine(val => {
+      if (val === null || val === undefined || val === '') return true;
+      const str = String(val).trim();
+      if (!/^\d+(\.\d{1,2})?$/.test(str)) return false;
+      return new Decimal(str).lte(MAX_MONETARY_AMOUNT);
+    }, { message: `${fieldName} must be a valid non-negative monetary amount with at most 2 decimal places and at most 999999999` })
+    .transform(val => {
+      if (val === null || val === undefined || val === '') return null;
+      return Money.parseInput(val, { isOptional: true, fieldName });
+    })
+    .nullable()
+    .optional();
+};
 
 // Schema for POST (Create)
 const createItemSchema = z.object({
@@ -8,8 +45,8 @@ const createItemSchema = z.object({
   sku: z.string().max(50).optional().or(z.literal('')),
   unit: z.string().max(50).optional(),
   hsnSac: z.string().max(20).optional().or(z.literal('')),
-  unitPrice: z.number().int('Selling price must be an integer (paise)').min(0, 'Selling price cannot be negative').max(999999999, 'Selling price too large'),
-  costPrice: z.number().int('Cost price must be an integer (paise)').min(0, 'Cost price cannot be negative').max(999999999, 'Cost price too large').nullable().optional(),
+  unitPrice: monetaryInput('Selling price', false),
+  costPrice: optionalMonetaryInput('Cost price'),
   currentStock: z.number().int('Stock must be an integer').min(0, 'Stock cannot be negative').max(9999999, 'Stock too large').nullable().optional(),
   lowStockThreshold: z.number().int('Threshold must be an integer').min(0, 'Threshold cannot be negative').max(9999999, 'Threshold too large').nullable().optional(),
   taxType: z.enum(['Inclusive', 'Exclusive']).optional().nullable(),
@@ -24,8 +61,8 @@ const updateItemSchema = z.object({
   sku: z.string().max(50).optional().or(z.literal('')),
   unit: z.string().max(50).optional(),
   hsnSac: z.string().max(20).optional().or(z.literal('')),
-  unitPrice: z.number().int('Selling price must be an integer (paise)').min(0, 'Selling price cannot be negative').max(999999999, 'Selling price too large').optional(),
-  costPrice: z.number().int('Cost price must be an integer (paise)').min(0, 'Cost price cannot be negative').max(999999999, 'Cost price too large').nullable().optional(),
+  unitPrice: monetaryInput('Selling price', true).optional(),
+  costPrice: optionalMonetaryInput('Cost price'),
   currentStock: z.number().int('Stock must be an integer').min(0, 'Stock cannot be negative').max(9999999, 'Stock too large').nullable().optional(),
   lowStockThreshold: z.number().int('Threshold must be an integer').min(0, 'Threshold cannot be negative').max(9999999, 'Threshold too large').nullable().optional(),
   taxType: z.enum(['Inclusive', 'Exclusive']).optional().nullable(),

@@ -1,4 +1,5 @@
 const { z } = require('zod');
+const Money = require('../utils/money');
 
 const createTaxConfigSchema = z.object({
   hsnSac: z.string().min(1, 'HSN/SAC code is required').max(20).regex(/^\d+$/, 'HSN/SAC code must be numeric'),
@@ -27,12 +28,27 @@ const updateTaxConfigSchema = z.object({
 }).strict();
 
 const calculateTaxSchema = z.object({
-  amountPaise: z.number().int('Amount must be an integer (paise)').min(0, 'Amount cannot be negative').max(9999999999, 'Amount too large'),
+  amount: z.union([z.number(), z.string()])
+    .refine(val => {
+      const str = String(val).trim();
+      return /^\d+(\.\d{1,2})?$/.test(str);
+    }, { message: 'Amount must be a valid non-negative monetary amount with at most 2 decimal places' })
+    .transform(val => Money.parseInput(val, { fieldName: 'Amount' }))
+    .optional(),
+  amountPaise: z.any().optional(), // For migration/legacy payload flexibility
   gstRate: z.number().min(0).max(100),
   pricingMode: z.enum(['EXCLUSIVE', 'INCLUSIVE']),
   supplyType: z.enum(['INTRA_STATE', 'INTER_STATE']),
   taxTreatment: z.enum(['TAXABLE', 'NIL_RATED', 'EXEMPT', 'NON_GST']).optional()
-}).strict();
+}).refine(data => data.amount !== undefined || data.amountPaise !== undefined, {
+  message: 'Amount is required'
+}).transform(data => {
+  const finalAmount = data.amount !== undefined ? data.amount : Money.parseInput(data.amountPaise, { fieldName: 'Amount' });
+  return {
+    ...data,
+    amount: finalAmount
+  };
+});
 
 const lookupQuerySchema = z.object({
   code: z.string().max(20, 'Code too long').optional(),

@@ -49,7 +49,7 @@ test('Item Schema Validation - Product vs Service & Negative Monetary', async (t
     taxType: 'Exclusive',
     currentStock: 50 // Validated out by hook
   });
-  
+
   if (service.type === 'Service') {
     service.currentStock = null;
     service.lowStockThreshold = null;
@@ -91,12 +91,12 @@ test('Invoice Schema Validation - Snapshots & Negative Monetary', async (t) => {
 test('Index Definitions - Compound Unique Invoices & Counter', (t) => {
   // Test duplicate invoice within same business via Index definition
   const invoiceIndexes = Invoice.schema.indexes();
-  const invoiceUniqueIndex = invoiceIndexes.find(i => 
+  const invoiceUniqueIndex = invoiceIndexes.find(i =>
     i[0].businessId === 1 && i[0].invoiceNumber === 1
   );
   assert.ok(invoiceUniqueIndex, 'Compound index on businessId and invoiceNumber must exist');
   assert.strictEqual(invoiceUniqueIndex[1].unique, true, 'Compound index must be unique: true');
-  // Since it includes businessId, Business A + INV-001 and Business B + INV-001 are valid, 
+  // Since it includes businessId, Business A + INV-001 and Business B + INV-001 are valid,
   // but Business A + INV-001 twice will trigger E11000 duplicate key error.
 
   // Test duplicate Counter for same business via Index definition
@@ -106,32 +106,53 @@ test('Index Definitions - Compound Unique Invoices & Counter', (t) => {
   assert.strictEqual(counterUniqueIndex[1].unique, true, 'Counter businessId index must be unique: true');
 });
 
-test('Phase 20 - Financial Precision Validation - Mongoose save()', async (t) => {
-  // Test floating point rejection
-  const floatItem = new Item({
+const Money = require('../src/utils/money');
+
+test('Phase 20 - Financial Precision Validation - Mongoose Model & Decimal128', async (t) => {
+  // Test excess decimal precision rejection via setter and Money utility
+  assert.throws(() => {
+    Money.toDecimal128('100.555');
+  }, /exceeds 2 decimal places/);
+
+  assert.throws(() => {
+    Item.schema.path('unitPrice').applySetters('100.555');
+  }, /exceeds 2 decimal places/);
+
+  // Test negative monetary amount rejection
+  assert.throws(() => {
+    Money.toDecimal128('-10.00');
+  }, /exceeds 2 decimal places|malformed/);
+
+  assert.throws(() => {
+    Item.schema.path('unitPrice').applySetters('-10.00');
+  }, /exceeds 2 decimal places|malformed/);
+
+  // Test model validation rejection of excess precision
+  const excessItem = new Item({
     businessId: new mongoose.Types.ObjectId(),
     type: 'Product',
-    name: 'Float Item',
-    unitPrice: 100.50,
-    costPrice: 50.25
+    name: 'Excess Precision Item',
+    unitPrice: '100.555'
   });
-  
-  const err = await floatItem.validate().catch(e => e);
-  assert.ok(err.errors['unitPrice'], 'Should fail on floating point unitPrice');
-  assert.match(err.errors['unitPrice'].message, /not an integer/, 'Error message should mention integer');
-  assert.ok(err.errors['costPrice'], 'Should fail on floating point costPrice');
-  
-  // Test valid integer
+  const excessErr = await excessItem.validate().catch(e => e);
+  assert.ok(excessErr?.errors?.['unitPrice'], 'Mongoose validation must fail on excess precision');
+
+  // Test valid 2-decimal rupee values
   const validItem = new Item({
     businessId: new mongoose.Types.ObjectId(),
     type: 'Product',
-    name: 'Integer Item',
-    unitPrice: 100,
-    costPrice: 50
+    name: 'Rupee Item',
+    unitPrice: '100.50',
+    costPrice: '50.25'
   });
-  
+
   const validErr = await validItem.validate().catch(e => e);
-  assert.strictEqual(validErr, undefined, 'Valid integer monetary values should pass');
+  assert.strictEqual(validErr, undefined, 'Valid rupee monetary values should pass');
+  assert.ok(validItem.get('unitPrice', null, { getters: false }) instanceof mongoose.Types.Decimal128, 'unitPrice must be stored as Decimal128');
+  assert.strictEqual(validItem.unitPrice, '100.50');
+  assert.strictEqual(validItem.costPrice, '50.25');
+  assert.strictEqual(validItem.get('unitPrice', null, { getters: false }).toString(), '100.50');
+  assert.strictEqual(validItem.get('costPrice', null, { getters: false }).toString(), '50.25');
 });
 
 test('Phase 20 - Financial Precision Validation - Mongoose findOneAndUpdate()', async (t) => {
